@@ -17,6 +17,7 @@ import androidx.swiperefreshlayout.widget.SwipeRefreshLayout;
 
 import com.example.adapter.RecentActivityAdapter;
 import com.example.database.DatabaseHelper;
+import com.example.database.FirestoreHelper;
 import com.example.model.ActivityItem;
 import com.example.model.Department;
 import com.example.utils.IdGenerationService;

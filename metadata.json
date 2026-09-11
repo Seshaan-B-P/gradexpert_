@@ -1,0 +1,6 @@
+{
+  "name": "GradeXpert",
+  "description": "Student grade and academic management portal for tracking performance, results, and attendance.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
