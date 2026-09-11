@@ -1,0 +1,155 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:aapt="http://schemas.android.com/aapt"
+    android:width="128dp"
+    android:height="128dp"
+    android:viewportWidth="120"
+    android:viewportHeight="120">
+
+    <!-- Soft Indigo Ambient Glow behind emblem on White -->
+    <path
+        android:pathData="M 60,60 m -46,0 a 46,46 0 1,0 92,0 a 46,46 0 1,0 -92,0">
+        <aapt:attr name="android:fillColor">
+            <gradient
+                android:centerX="60"
+                android:centerY="60"
+                android:gradientRadius="46"
+                android:startColor="#124F46E5"
+                android:endColor="#00FFFFFF"
+                android:type="radial" />
+        </aapt:attr>
+    </path>
+
+    <!-- Outer Orbit Ring: Sky Blue to Emerald Green -->
+    <path
+        android:pathData="M 32,38 A 38,38 0 1,0 94,48"
+        android:strokeWidth="4.2"
+        android:strokeLineCap="round">
+        <aapt:attr name="android:strokeColor">
+            <gradient
+                android:startX="32"
+                android:startY="38"
+                android:endX="94"
+                android:endY="98"
+                android:startColor="#0284C7"
+                android:endColor="#10B981"
+                android:type="linear" />
+        </aapt:attr>
+    </path>
+
+    <!-- Report Sheet Drop Shadow -->
+    <path
+        android:pathData="M 42,40 L 76,40 A 5,5 0 0 1 81,45 L 81,85 A 5,5 0 0 1 76,90 L 42,90 A 5,5 0 0 1 37,85 L 37,45 A 5,5 0 0 1 42,40 Z"
+        android:fillColor="#15000000" />
+
+    <!-- Academic Report Sheet Card Base (Crisp White Card with Sharp Border) -->
+    <path
+        android:pathData="M 41,38 L 73,38 A 5,5 0 0 1 78,43 L 78,83 A 5,5 0 0 1 73,88 L 41,88 A 5,5 0 0 1 36,83 L 36,43 A 5,5 0 0 1 41,38 Z"
+        android:fillColor="#FFFFFF"
+        android:strokeColor="#94A3B8"
+        android:strokeWidth="1.8" />
+
+    <!-- Sheet Header Lines -->
+    <path
+        android:pathData="M 42,47 L 57,47"
+        android:strokeColor="#475569"
+        android:strokeWidth="2.5"
+        android:strokeLineCap="round" />
+    <path
+        android:pathData="M 42,53 L 53,53"
+        android:strokeColor="#64748B"
+        android:strokeWidth="2.2"
+        android:strokeLineCap="round" />
+
+    <!-- "A+" Grade Mark (Emerald Green) -->
+    <path
+        android:pathData="M 62,56 L 66,45 L 70,56 M 63.5,52.5 L 68.5,52.5"
+        android:strokeColor="#059669"
+        android:strokeWidth="2.5"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round" />
+    <path
+        android:pathData="M 72.5,49 L 76.5,49 M 74.5,47 L 74.5,51"
+        android:strokeColor="#059669"
+        android:strokeWidth="2.2"
+        android:strokeLineCap="round" />
+
+    <!-- Performance Chart Bars -->
+    <path
+        android:pathData="M 42,78 L 42,69"
+        android:strokeColor="#0284C7"
+        android:strokeWidth="4.2"
+        android:strokeLineCap="round" />
+    <path
+        android:pathData="M 48,78 L 48,63"
+        android:strokeColor="#2563EB"
+        android:strokeWidth="4.2"
+        android:strokeLineCap="round" />
+    <path
+        android:pathData="M 54,78 L 54,58"
+        android:strokeColor="#4F46E5"
+        android:strokeWidth="4.2"
+        android:strokeLineCap="round" />
+
+    <!-- Achievement Checkmark (Dynamic Green Swoosh) -->
+    <path
+        android:pathData="M 56,70 L 64,79 L 84,51"
+        android:strokeColor="#10B981"
+        android:strokeWidth="5.5"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round" />
+
+    <!-- Graduation Cap Skull Base -->
+    <path
+        android:pathData="M 46,28 L 46,36 C 46,40 70,40 70,36 L 70,28 Z">
+        <aapt:attr name="android:fillColor">
+            <gradient
+                android:startX="46"
+                android:startY="28"
+                android:endX="70"
+                android:endY="38"
+                android:startColor="#1E293B"
+                android:endColor="#0F172A"
+                android:type="linear" />
+        </aapt:attr>
+    </path>
+
+    <!-- Graduation Cap Mortarboard (Diamond Top) -->
+    <path
+        android:pathData="M 58,12 L 90,24 L 58,36 L 26,24 Z"
+        android:strokeColor="#2563EB"
+        android:strokeWidth="1.2">
+        <aapt:attr name="android:fillColor">
+            <gradient
+                android:startX="26"
+                android:startY="12"
+                android:endX="90"
+                android:endY="36"
+                android:startColor="#1E293B"
+                android:endColor="#0F172A"
+                android:type="linear" />
+        </aapt:attr>
+    </path>
+
+    <!-- Center Button on Cap -->
+    <path
+        android:pathData="M 58,24 m -2.5,0 a 2.5,2.5 0 1,0 5,0 a 2.5,2.5 0 1,0 -5,0"
+        android:fillColor="#F59E0B" />
+
+    <!-- Golden Tassel -->
+    <path
+        android:pathData="M 58,24 L 33,28 L 30,40"
+        android:strokeColor="#D97706"
+        android:strokeWidth="2.5"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round" />
+    <path
+        android:pathData="M 30,40 m -2.5,0 a 2.5,2.5 0 1,0 5,0 a 2.5,2.5 0 1,0 -5,0"
+        android:fillColor="#D97706" />
+
+    <!-- Golden Star of Excellence (Top Right) -->
+    <path
+        android:pathData="M 94,14 L 96.2,18.8 L 101.5,19.5 L 97.6,23.1 L 98.6,28.3 L 94,25.8 L 89.4,28.3 L 90.4,23.1 L 86.5,19.5 L 91.8,18.8 Z"
+        android:fillColor="#F59E0B" />
+
+</vector>

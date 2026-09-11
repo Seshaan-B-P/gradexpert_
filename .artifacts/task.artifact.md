@@ -1,0 +1,4 @@
+- `[ ]` Update `gradle/libs.versions.toml` with missing plugin and library definitions
+- `[ ]` Run Gradle Sync to verify resolution
+- `[ ]` Verify build with `./gradlew :app:assembleDebug`
+- `[ ]` Create walkthrough artifact

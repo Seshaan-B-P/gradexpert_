@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "739722391621",
+    "project_id": "gradexpert-f8217",
+    "storage_bucket": "gradexpert-f8217.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:739722391621:android:74032295f8a08ad0b6b32c",
+        "android_client_info": {
+          "package_name": "com.aistudio.gradexpert.kxmpzq"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDgyt7klM0NRTDQ5TWbyYxYHfNVDpGZ_Kg"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

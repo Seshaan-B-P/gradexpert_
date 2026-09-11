@@ -1,0 +1,62 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Core Brand Colors (Dark Theme) -->
+    <color name="primary">#6366F1</color>
+    <color name="primary_dark">#4F46E5</color>
+    <color name="primary_light">#312E81</color>
+    <color name="secondary">#38BDF8</color>
+    <color name="secondary_dark">#0284C7</color>
+    <color name="secondary_light">#0C4A6E</color>
+
+    <!-- Theme Semantic Colors (Dark Theme) -->
+    <color name="background">#0F172A</color>
+    <color name="surface">#1E293B</color>
+    <color name="card_background">#1E293B</color>
+    <color name="text_primary">#FFFFFF</color>
+    <color name="text_secondary">#E2E8F0</color>
+    <color name="text_hint">#CBD5E1</color>
+    <color name="border_color">#334155</color>
+    <color name="divider_color">#334155</color>
+    <color name="error">#F87171</color>
+    <color name="success">#34D399</color>
+
+    <!-- Specific Semantic Colors -->
+    <color name="header_subtitle">#A5B4FC</color>
+    <color name="on_primary_fixed">#312E81</color>
+    <color name="divider_overlay">#40FFFFFF</color>
+    <color name="divider_overlay_faint">#20FFFFFF</color>
+
+    <!-- Status & Accent Colors -->
+    <color name="warning">#FBBF24</color>
+    <color name="warning_light">#451A03</color>
+    <color name="error_light">#450A0A</color>
+    <color name="error_border">#991B1B</color>
+    <color name="info">#60A5FA</color>
+    <color name="info_light">#1E3A8A</color>
+    <color name="accent_purple">#A78BFA</color>
+    <color name="accent_purple_light">#3B0764</color>
+    <color name="accent_brown">#F59E0B</color>
+    <color name="accent_brown_light">#451A03</color>
+    <color name="accent_gray">#94A3B8</color>
+    <color name="accent_gray_light">#1E293B</color>
+    <color name="accent_teal">#34D399</color>
+
+    <!-- Global Colors -->
+    <color name="black">#FF000000</color>
+    <color name="white">#FFFFFFFF</color>
+    <color name="gray_100">#1E293B</color>
+    <color name="gray_200">#334155</color>
+    <color name="gray_600">#94A3B8</color>
+
+    <!-- Login Screen Colors -->
+    <color name="login_bg">@color/background</color>
+    <color name="login_card">@color/surface</color>
+    <color name="login_accent">@color/primary</color>
+    <color name="login_text_primary">@color/text_primary</color>
+    <color name="login_text_secondary">@color/text_secondary</color>
+    <color name="login_input_bg">@color/surface</color>
+    <color name="login_input_stroke">@color/border_color</color>
+
+    <!-- Additional UI Surface Colors -->
+    <color name="bg_chip_surface">#312E81</color>
+</resources>

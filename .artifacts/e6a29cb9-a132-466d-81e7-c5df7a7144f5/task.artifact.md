@@ -1,0 +1,8 @@
+- [x] Add JitPack repository to `settings.gradle.kts`
+- [x] Fix SDK resolution error in `app/build.gradle.kts`
+- [x] Fix missing `debug.keystore` error
+- [x] Suppress experimental Kotlin source set warning in `gradle.properties`
+- [x] Replace app logo in Login, Dashboards, and Manifest
+- [x] Redesign Login Screen to match custom dark theme
+- [x] Sync Gradle project and verify build
+- [x] Create walkthrough

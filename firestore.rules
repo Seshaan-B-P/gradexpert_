@@ -1,0 +1,229 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Helper functions
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isAdmin() {
+      return isAuthenticated() && 
+        (request.auth.token.role == 'admin' || 
+         (exists(/databases/$(database)/documents/users/$(request.auth.uid)) && 
+          get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'ADMIN'));
+    }
+
+    function isTeacher() {
+      return isAuthenticated() && 
+        (isAdmin() || 
+         request.auth.token.role == 'teacher' || 
+         exists(/databases/$(database)/documents/teachers/$(request.auth.uid)));
+    }
+
+    // System Settings security rules
+    match /systemSettings/{settingId} {
+      allow write: if isAdmin();
+      allow read: if isAuthenticated();
+    }
+
+    // Academic Departments security rules
+    match /departments/{deptId} {
+      allow create, update, delete: if isAdmin();
+      allow read: if isAuthenticated();
+    }
+
+    // Academic Semesters security rules
+    match /semesters/{semId} {
+      allow create, update, delete: if isAdmin();
+      allow read: if isAuthenticated();
+    }
+
+    // Academic Years security rules
+    match /academicYears/{yearId} {
+      allow create, update, delete: if isAdmin();
+      allow read: if isAuthenticated();
+    }
+
+    // Teacher-Subject Assignments security rules
+    match /teacher_assignments/{assignmentId} {
+      allow read: if isAuthenticated();
+      allow create: if isAdmin() || (
+        isTeacher() && 
+        (request.resource.data.teacherEmail == request.auth.token.email || 
+         request.resource.data.teacherUid == request.auth.uid)
+      );
+      allow update: if isAdmin() || (
+        isTeacher() && 
+        (resource.data.teacherEmail == request.auth.token.email || resource.data.teacherUid == request.auth.uid) &&
+        (request.resource.data.teacherEmail == request.auth.token.email || request.resource.data.teacherUid == request.auth.uid)
+      );
+      allow delete: if isAdmin() || (
+        isTeacher() && 
+        (resource.data.teacherEmail == request.auth.token.email || resource.data.teacherUid == request.auth.uid)
+      );
+    }
+
+    // Users Collection security rules
+    match /users/{uid} {
+      allow create, delete: if isAdmin();
+      allow update: if isAdmin() || (
+        isAuthenticated() && 
+        request.auth.uid == uid && 
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['assignedSubjectIds', 'assignedSubjectNames', 'updatedAt'])
+      );
+      allow read: if true;
+    }
+
+    // Teachers Collection security rules
+    match /teachers/{teacherId} {
+      allow create, delete: if isAdmin();
+      allow update: if isAdmin() || (
+        isAuthenticated() && 
+        request.auth.uid == teacherId && 
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['assignedSubjectIds', 'assignedSubjectNames', 'updatedAt', 'updatedBy'])
+      );
+      allow read: if true;
+    }
+
+    // Attendance collection security rules
+    match /attendance/{attendanceId} {
+      allow create, update, delete: if isTeacher() || isAdmin();
+      allow read: if isTeacher() || 
+                  (isAuthenticated() && (resource == null || resource.data.studentId == request.auth.uid));
+    }
+
+    // Assignments collection security rules
+    match /assignments/{assignmentId} {
+      allow create, update, delete: if isTeacher() || isAdmin();
+      allow read: if isTeacher() || 
+                  (isAuthenticated() && (resource == null || resource.data.status == 'PUBLISHED' || resource.data.createdBy == request.auth.uid));
+    }
+
+    // Assignment Submissions collection security rules
+    match /assignment_submissions/{submissionId} {
+      allow create: if isAuthenticated();
+      allow update: if isTeacher() || isAdmin() || 
+                    (isAuthenticated() && (resource == null || resource.data.studentId == request.auth.uid));
+      allow read: if isTeacher() || isAdmin() || 
+                  (isAuthenticated() && (resource == null || resource.data.studentId == request.auth.uid));
+    }
+
+    // User Login IDs uniqueness & resolution lookup
+    match /userLoginIds/{normalizedLoginId} {
+      // Public read required to resolve Login ID to email prior to Firebase Auth sign-in
+      allow read: if true;
+      // Creation / reservation permitted by authenticated admin or cloud service
+      allow write: if isAuthenticated();
+    }
+
+    // Atomic ID generation counters
+    match /counters/{counterKey} {
+      allow read, write: if isAuthenticated();
+    }
+
+    // Students collection security rules
+    match /students/{studentId} {
+      allow create, delete: if isAdmin();
+      allow update: if isAdmin() || (
+        isAuthenticated() && 
+        request.auth.uid == studentId && 
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['phone', 'updatedAt'])
+      );
+      allow read: if true;
+    }
+
+    // Subjects collection security rules (Admin-controlled master data)
+    match /subjects/{subjectId} {
+      allow create, update, delete: if isAdmin();
+      allow read: if isAuthenticated();
+    }
+
+    // Results collection security rules
+    match /results/{resultId} {
+      // Students can only read APPROVED (or legacy PUBLISHED) results belonging to their own Firebase Auth UID (studentUid)
+      // Preserves backward compatibility if legacy results have studentId == request.auth.uid
+      allow read: if isTeacher() || isAdmin() || 
+                  (isAuthenticated() && (resource == null || 
+                    ((resource.data.studentUid == request.auth.uid || string(resource.data.studentId) == request.auth.uid) && 
+                     (resource.data.status == 'APPROVED' || resource.data.status == 'PUBLISHED'))));
+      
+      // Teachers can submit results only with PENDING_APPROVAL status (version 1 or re-submission)
+      // Teachers cannot directly set status to 'APPROVED' or 'PUBLISHED'
+      allow create: if (isTeacher() && request.resource.data.status == 'PENDING_APPROVAL') || isAdmin();
+      
+      // Teachers can modify results only if status is PENDING_APPROVAL or REJECTED, and only to resubmit as PENDING_APPROVAL
+      // Teachers CANNOT modify an APPROVED result directly; must use resultUpdateRequests
+      // Admins can update status to APPROVED or REJECTED
+      allow update: if isAdmin() || 
+                    (isTeacher() && 
+                     (resource.data.status == 'PENDING_APPROVAL' || resource.data.status == 'REJECTED') && 
+                     request.resource.data.status == 'PENDING_APPROVAL');
+      
+      allow delete: if isAdmin();
+    }
+
+    // Result Update Requests collection security rules
+    match /resultUpdateRequests/{requestId} {
+      // Only Admin and Teachers can read update requests; Students CANNOT read them
+      allow read: if isTeacher() || isAdmin();
+      
+      // Teachers can create update requests with status 'UPDATE_PENDING_APPROVAL'
+      allow create: if (isTeacher() && request.resource.data.status == 'UPDATE_PENDING_APPROVAL') || isAdmin();
+      
+      // Only Admin can approve (APPROVED) or reject (UPDATE_REJECTED) an update request
+      allow update: if isAdmin();
+      
+      allow delete: if isAdmin();
+    }
+
+    // Audit logs collection security rules (immutable after creation)
+    match /auditLogs/{logId} {
+      allow create: if isAuthenticated();
+      allow read: if isTeacher() || isAdmin();
+      // Audit logs are strictly immutable: no update or delete allowed
+      allow update, delete: if false;
+    }
+
+    // Broadcast Alerts collection security rules
+    match /broadcastAlerts/{alertId} {
+      allow create, update, delete: if isTeacher() || isAdmin();
+      allow read: if isAuthenticated();
+    }
+
+    // Notifications Top-Level Collection security rules
+    match /notifications/{notificationId} {
+      allow create: if true;
+      allow read, update, delete: if isAuthenticated();
+    }
+
+    // Student Devices collection security rules (FCM Tokens)
+    match /studentDevices/{uid}/tokens/{tokenId} {
+      allow read, write: if isAuthenticated() && (request.auth.uid == uid || isAdmin());
+    }
+
+    // Student personal notification history security rules
+    match /users/{uid}/notifications/{notificationId} {
+      allow read, update, delete: if isAuthenticated() && request.auth.uid == uid;
+      allow create: if true;
+    }
+
+    // Portal Activities audit log collection security rules
+    match /portalActivities/{activityId} {
+      allow create, update, delete: if isTeacher() || isAdmin();
+      allow read: if isTeacher() || isAdmin() || isAuthenticated();
+    }
+
+    // Password Reset Requests security rules
+    match /passwordResetRequests/{requestId} {
+      allow create: if request.resource.data.status == 'PENDING';
+      allow read: if isAdmin() || (isAuthenticated() && (resource == null || resource.data.userId == request.auth.uid || resource.data.email == request.auth.token.email));
+      allow update, delete: if isAdmin();
+    }
+
+    // Default rule for all other documents
+    match /{document=**} {
+      allow read, write: if isAuthenticated();
+    }
+  }
+}
