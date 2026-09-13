@@ -74,6 +74,19 @@
                 </LinearLayout>
 
                 <ImageView
+                    android:id="@+id/btnExportPdfResultDetails"
+                    android:layout_width="36dp"
+                    android:layout_height="36dp"
+                    android:layout_marginEnd="4dp"
+                    android:background="?attr/selectableItemBackgroundBorderless"
+                    android:clickable="true"
+                    android:contentDescription="Export PDF"
+                    android:focusable="true"
+                    android:padding="6dp"
+                    android:src="@drawable/ic_pdf"
+                    app:tint="@color/white" />
+
+                <ImageView
                     android:id="@+id/btnShareResultDetails"
                     android:layout_width="36dp"
                     android:layout_height="36dp"
@@ -82,7 +95,7 @@
                     android:contentDescription="Share"
                     android:focusable="true"
                     android:padding="6dp"
-                    android:src="@drawable/ic_trending_up"
+                    android:src="@drawable/ic_share"
                     app:tint="@color/white" />
 
             </LinearLayout>
@@ -349,6 +362,36 @@
                 </LinearLayout>
 
             </com.google.android.material.card.MaterialCardView>
+
+            <!-- Export PDF Action Card / Button -->
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/btnExportPdfResultDetailsBottom"
+                android:layout_width="match_parent"
+                android:layout_height="52dp"
+                android:layout_marginStart="16dp"
+                android:layout_marginTop="16dp"
+                android:layout_marginEnd="16dp"
+                android:backgroundTint="@color/success"
+                android:text="EXPORT GRADE REPORT (PDF)"
+                android:textColor="@color/white"
+                android:textSize="14sp"
+                android:textStyle="bold"
+                app:cornerRadius="12dp"
+                app:icon="@drawable/ic_pdf"
+                app:iconGravity="textStart"
+                app:iconPadding="8dp"
+                app:iconTint="@color/white" />
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="24dp"
+                android:layout_marginTop="6dp"
+                android:layout_marginEnd="24dp"
+                android:gravity="center"
+                android:text="Saves the official statement of marks to device storage for offline record-keeping."
+                android:textColor="@color/text_secondary"
+                android:textSize="11sp" />
 
         </LinearLayout>
 

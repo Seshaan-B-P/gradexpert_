@@ -9,6 +9,7 @@ import com.google.firebase.firestore.ServerTimestamp;
  */
 public class Student {
 
+    private int numericId = 0;
     private String studentId;
     private String name;
     private String registerNo;
@@ -81,7 +82,8 @@ public class Student {
 
     // Compatibility constructor for legacy code using (int id, String name, String regNo, ...)
     public Student(int id, String name, String regNo, String department, int semester, String email, String phone, String photoUri) {
-        this.studentId = String.valueOf(id > 0 ? id : System.currentTimeMillis());
+        this.numericId = id;
+        this.studentId = id > 0 ? String.valueOf(id) : "";
         this.name = name;
         this.registerNo = regNo;
         this.department = department;
@@ -94,7 +96,8 @@ public class Student {
     }
 
     public Student(int id, String name, String regNo, String department, String semester, String email, String phone, String photoUri) {
-        this.studentId = String.valueOf(id > 0 ? id : System.currentTimeMillis());
+        this.numericId = id;
+        this.studentId = id > 0 ? String.valueOf(id) : "";
         this.name = name;
         this.registerNo = regNo;
         this.department = department;
@@ -112,19 +115,31 @@ public class Student {
 
     public void setStudentId(String studentId) {
         this.studentId = studentId;
+        if (studentId != null && studentId.matches("\\d+")) {
+            try {
+                this.numericId = Integer.parseInt(studentId);
+            } catch (Exception ignored) {}
+        }
     }
 
     // Legacy int ID getter/setter for compatibility
     public int getId() {
-        try {
-            return Integer.parseInt(studentId);
-        } catch (Exception e) {
-            return (int) (System.currentTimeMillis() % 100000);
+        if (this.numericId > 0) {
+            return this.numericId;
         }
+        if (studentId != null && !studentId.isEmpty()) {
+            try {
+                return Integer.parseInt(studentId);
+            } catch (Exception ignored) {}
+        }
+        return this.numericId;
     }
 
     public void setId(int id) {
-        this.studentId = String.valueOf(id);
+        this.numericId = id;
+        if (this.studentId == null || this.studentId.isEmpty() || this.studentId.matches("\\d+")) {
+            this.studentId = String.valueOf(id);
+        }
     }
 
     public String getName() {
@@ -188,7 +203,7 @@ public class Student {
 
     public void setFirebaseUid(String firebaseUid) {
         this.firebaseUid = firebaseUid;
-        if (firebaseUid != null && !firebaseUid.trim().isEmpty() && (this.studentId == null || this.studentId.matches("\\d+"))) {
+        if (firebaseUid != null && !firebaseUid.trim().isEmpty() && this.numericId <= 0 && (this.studentId == null || this.studentId.isEmpty() || this.studentId.matches("\\d+"))) {
             this.studentId = firebaseUid.trim();
         }
     }

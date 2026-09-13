@@ -435,6 +435,24 @@ public class ResultRepository {
                             "RESULT_PUBLISHED", "Semester Result Published",
                             "Your Semester Result has been published.");
 
+                    try {
+                        String studentGrade = result.getSgpa() >= 9.0 ? "O" : (result.getSgpa() >= 8.0 ? "A+" : (result.getSgpa() >= 7.0 ? "A" : "B+"));
+                        com.example.utils.GradeNotificationHelper.dispatchGradeUploadAlert(
+                                context,
+                                result.getStudentName(),
+                                result.getRegisterNo(),
+                                result.getStudentNumericId(),
+                                "Semester " + result.getSemester() + " Official Result",
+                                "SEM" + result.getSemester(),
+                                studentGrade,
+                                result.getTotalMarks(),
+                                result.getPercentage(),
+                                result.getSgpa(),
+                                adminName != null ? adminName : "Examination Cell",
+                                result.getSemester()
+                        );
+                    } catch (Exception ignored) {}
+
                     // Log Audit Trail
                     logAuditTrail("RESULT_APPROVED", docId, result.getStudentId(),
                             result.getStudentName(), result.getSemester(),

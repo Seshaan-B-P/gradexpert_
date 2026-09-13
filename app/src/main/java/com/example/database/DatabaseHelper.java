@@ -20,6 +20,7 @@ import com.example.model.AttendanceRecord;
 import com.example.model.MonthlyAttendanceStats;
 import com.example.model.PasswordResetRequest;
 import com.example.model.Student;
+import com.example.model.StudentAttendanceLog;
 import com.example.model.Subject;
 import com.example.model.SubjectAttendanceStats;
 import com.example.model.SubjectGradeItem;
@@ -50,47 +51,88 @@ public class DatabaseHelper extends SQLiteOpenHelper {
     public static final String TABLE_ACTIVITY_LOGS = "activity_logs";
     public static final String TABLE_ASSESSMENTS = "assessments";
     public static final String TABLE_PASSWORD_RESETS = "password_reset_requests";
+    public static final String TABLE_STUDENT_ATTENDANCE_LOGS = "student_attendance_logs";
 
     public DatabaseHelper(Context context) {
         super(context, DATABASE_NAME, null, DATABASE_VERSION);
+    }
+
+    private Set<String> getTableColumns(SQLiteDatabase db, String tableName) {
+        Set<String> columns = new HashSet<>();
+        Cursor cursor = null;
+        try {
+            cursor = db.rawQuery("PRAGMA table_info(" + tableName + ")", null);
+            if (cursor != null) {
+                int nameIndex = cursor.getColumnIndex("name");
+                while (cursor.moveToNext()) {
+                    if (nameIndex != -1) {
+                        columns.add(cursor.getString(nameIndex).toLowerCase(Locale.ROOT));
+                    }
+                }
+            }
+        } catch (Exception ignored) {
+        } finally {
+            if (cursor != null) {
+                cursor.close();
+            }
+        }
+        return columns;
+    }
+
+    private void addColumnIfNotExists(SQLiteDatabase db, String tableName, Set<String> existingColumns, String columnName, String columnTypeAndDefault) {
+        if (!existingColumns.contains(columnName.toLowerCase(Locale.ROOT))) {
+            try {
+                db.execSQL("ALTER TABLE " + tableName + " ADD COLUMN " + columnName + " " + columnTypeAndDefault);
+                existingColumns.add(columnName.toLowerCase(Locale.ROOT));
+            } catch (Exception ignored) {}
+        }
     }
 
     @Override
     public void onOpen(SQLiteDatabase db) {
         super.onOpen(db);
         try {
-            // Safe schema migrations for TABLE_RESULTS columns
-            try { db.execSQL("ALTER TABLE " + TABLE_RESULTS + " ADD COLUMN total_marks REAL DEFAULT 0"); } catch (Exception ignored) {}
-            try { db.execSQL("ALTER TABLE " + TABLE_RESULTS + " ADD COLUMN percentage REAL DEFAULT 0"); } catch (Exception ignored) {}
-            try { db.execSQL("ALTER TABLE " + TABLE_RESULTS + " ADD COLUMN total_credits INTEGER DEFAULT 0"); } catch (Exception ignored) {}
-            try { db.execSQL("ALTER TABLE " + TABLE_RESULTS + " ADD COLUMN status TEXT DEFAULT 'DRAFT'"); } catch (Exception ignored) {}
-            try { db.execSQL("ALTER TABLE " + TABLE_RESULTS + " ADD COLUMN published_date TEXT"); } catch (Exception ignored) {}
-            try { db.execSQL("ALTER TABLE " + TABLE_RESULTS + " ADD COLUMN version INTEGER DEFAULT 1"); } catch (Exception ignored) {}
-            try { db.execSQL("ALTER TABLE " + TABLE_RESULTS + " ADD COLUMN approval_status TEXT DEFAULT 'DRAFT'"); } catch (Exception ignored) {}
-            try { db.execSQL("ALTER TABLE " + TABLE_RESULTS + " ADD COLUMN submitted_at TEXT"); } catch (Exception ignored) {}
-            try { db.execSQL("ALTER TABLE " + TABLE_RESULTS + " ADD COLUMN approved_at TEXT"); } catch (Exception ignored) {}
-            try { db.execSQL("ALTER TABLE " + TABLE_RESULTS + " ADD COLUMN approved_by TEXT"); } catch (Exception ignored) {}
-            try { db.execSQL("ALTER TABLE " + TABLE_RESULTS + " ADD COLUMN rejection_reason TEXT"); } catch (Exception ignored) {}
-            try { db.execSQL("ALTER TABLE " + TABLE_RESULTS + " ADD COLUMN student_uid TEXT"); } catch (Exception ignored) {}
-            try { db.execSQL("ALTER TABLE " + TABLE_RESULTS + " ADD COLUMN sync_status TEXT DEFAULT 'SYNCED'"); } catch (Exception ignored) {}
-            try { db.execSQL("ALTER TABLE " + TABLE_STUDENTS + " ADD COLUMN student_uid TEXT"); } catch (Exception ignored) {}
-            try { db.execSQL("ALTER TABLE " + TABLE_STUDENTS + " ADD COLUMN firebase_uid TEXT"); } catch (Exception ignored) {}
-            try { db.execSQL("ALTER TABLE " + TABLE_STUDENTS + " ADD COLUMN login_id TEXT"); } catch (Exception ignored) {}
-            try { db.execSQL("ALTER TABLE " + TABLE_STUDENTS + " ADD COLUMN reg_no TEXT"); } catch (Exception ignored) {}
-            try { db.execSQL("ALTER TABLE " + TABLE_TEACHERS + " ADD COLUMN firebase_uid TEXT"); } catch (Exception ignored) {}
-            try { db.execSQL("ALTER TABLE " + TABLE_TEACHERS + " ADD COLUMN login_id TEXT"); } catch (Exception ignored) {}
-            try { db.execSQL("ALTER TABLE " + TABLE_SUBJECTS + " ADD COLUMN program_level TEXT DEFAULT 'UG'"); } catch (Exception ignored) {}
-            try { db.execSQL("ALTER TABLE " + TABLE_SUBJECTS + " ADD COLUMN department_id TEXT"); } catch (Exception ignored) {}
-            try { db.execSQL("ALTER TABLE " + TABLE_SUBJECTS + " ADD COLUMN department_short_name TEXT"); } catch (Exception ignored) {}
+            // Safe schema migrations with prior column existence check to prevent duplicate column SQLite errors
+            Set<String> resultCols = getTableColumns(db, TABLE_RESULTS);
+            addColumnIfNotExists(db, TABLE_RESULTS, resultCols, "total_marks", "REAL DEFAULT 0");
+            addColumnIfNotExists(db, TABLE_RESULTS, resultCols, "percentage", "REAL DEFAULT 0");
+            addColumnIfNotExists(db, TABLE_RESULTS, resultCols, "total_credits", "INTEGER DEFAULT 0");
+            addColumnIfNotExists(db, TABLE_RESULTS, resultCols, "status", "TEXT DEFAULT 'DRAFT'");
+            addColumnIfNotExists(db, TABLE_RESULTS, resultCols, "published_date", "TEXT");
+            addColumnIfNotExists(db, TABLE_RESULTS, resultCols, "version", "INTEGER DEFAULT 1");
+            addColumnIfNotExists(db, TABLE_RESULTS, resultCols, "approval_status", "TEXT DEFAULT 'DRAFT'");
+            addColumnIfNotExists(db, TABLE_RESULTS, resultCols, "submitted_at", "TEXT");
+            addColumnIfNotExists(db, TABLE_RESULTS, resultCols, "approved_at", "TEXT");
+            addColumnIfNotExists(db, TABLE_RESULTS, resultCols, "approved_by", "TEXT");
+            addColumnIfNotExists(db, TABLE_RESULTS, resultCols, "rejection_reason", "TEXT");
+            addColumnIfNotExists(db, TABLE_RESULTS, resultCols, "student_uid", "TEXT");
+            addColumnIfNotExists(db, TABLE_RESULTS, resultCols, "sync_status", "TEXT DEFAULT 'SYNCED'");
+
+            Set<String> studentCols = getTableColumns(db, TABLE_STUDENTS);
+            addColumnIfNotExists(db, TABLE_STUDENTS, studentCols, "student_uid", "TEXT");
+            addColumnIfNotExists(db, TABLE_STUDENTS, studentCols, "firebase_uid", "TEXT");
+            addColumnIfNotExists(db, TABLE_STUDENTS, studentCols, "login_id", "TEXT");
+            addColumnIfNotExists(db, TABLE_STUDENTS, studentCols, "reg_no", "TEXT");
+
+            Set<String> teacherCols = getTableColumns(db, TABLE_TEACHERS);
+            addColumnIfNotExists(db, TABLE_TEACHERS, teacherCols, "firebase_uid", "TEXT");
+            addColumnIfNotExists(db, TABLE_TEACHERS, teacherCols, "login_id", "TEXT");
+
+            Set<String> subjectCols = getTableColumns(db, TABLE_SUBJECTS);
+            addColumnIfNotExists(db, TABLE_SUBJECTS, subjectCols, "program_level", "TEXT DEFAULT 'UG'");
+            addColumnIfNotExists(db, TABLE_SUBJECTS, subjectCols, "department_id", "TEXT");
+            addColumnIfNotExists(db, TABLE_SUBJECTS, subjectCols, "department_short_name", "TEXT");
+
             try { db.execSQL("CREATE TABLE IF NOT EXISTS " + TABLE_ASSESSMENTS + " (id INTEGER PRIMARY KEY AUTOINCREMENT, title TEXT, type TEXT, subject_id INTEGER, semester INTEGER, date TEXT, max_marks REAL, status TEXT DEFAULT 'PENDING')"); } catch (Exception ignored) {}
             try { db.execSQL("CREATE TABLE IF NOT EXISTS " + TABLE_PASSWORD_RESETS + " (id INTEGER PRIMARY KEY AUTOINCREMENT, request_id TEXT UNIQUE, user_id TEXT, user_name TEXT, email TEXT, role TEXT, identifier TEXT, department TEXT, semester TEXT, status TEXT DEFAULT 'PENDING', requested_at TEXT, processed_at TEXT, processed_by TEXT, admin_note TEXT)"); } catch (Exception ignored) {}
+            try { db.execSQL("CREATE TABLE IF NOT EXISTS " + TABLE_STUDENT_ATTENDANCE_LOGS + " (id INTEGER PRIMARY KEY AUTOINCREMENT, student_id INTEGER, subject_name TEXT, total_classes INTEGER, attended_classes INTEGER, percentage REAL, logged_date TEXT, notes TEXT, threshold REAL, status TEXT)"); } catch (Exception ignored) {}
         } catch (Exception ignored) {}
     }
 
     @Override
     public void onCreate(SQLiteDatabase db) {
         // Teachers Table
-        String CREATE_TEACHERS_TABLE = "CREATE TABLE " + TABLE_TEACHERS + " ("
+        String CREATE_TEACHERS_TABLE = "CREATE TABLE IF NOT EXISTS " + TABLE_TEACHERS + " ("
                 + "id INTEGER PRIMARY KEY AUTOINCREMENT, "
                 + "name TEXT, "
                 + "email TEXT UNIQUE, "
@@ -104,7 +146,7 @@ public class DatabaseHelper extends SQLiteOpenHelper {
         db.execSQL(CREATE_TEACHERS_TABLE);
 
         // Students Table
-        String CREATE_STUDENTS_TABLE = "CREATE TABLE " + TABLE_STUDENTS + " ("
+        String CREATE_STUDENTS_TABLE = "CREATE TABLE IF NOT EXISTS " + TABLE_STUDENTS + " ("
                 + "id INTEGER PRIMARY KEY AUTOINCREMENT, "
                 + "name TEXT, "
                 + "email TEXT UNIQUE, "
@@ -121,7 +163,7 @@ public class DatabaseHelper extends SQLiteOpenHelper {
         db.execSQL(CREATE_STUDENTS_TABLE);
 
         // Subjects Table
-        String CREATE_SUBJECTS_TABLE = "CREATE TABLE " + TABLE_SUBJECTS + " ("
+        String CREATE_SUBJECTS_TABLE = "CREATE TABLE IF NOT EXISTS " + TABLE_SUBJECTS + " ("
                 + "id INTEGER PRIMARY KEY AUTOINCREMENT, "
                 + "subject_code TEXT UNIQUE, "
                 + "subject_name TEXT, "
@@ -134,7 +176,7 @@ public class DatabaseHelper extends SQLiteOpenHelper {
         db.execSQL(CREATE_SUBJECTS_TABLE);
 
         // Marks Table
-        String CREATE_MARKS_TABLE = "CREATE TABLE " + TABLE_MARKS + " ("
+        String CREATE_MARKS_TABLE = "CREATE TABLE IF NOT EXISTS " + TABLE_MARKS + " ("
                 + "id INTEGER PRIMARY KEY AUTOINCREMENT, "
                 + "student_id INTEGER, "
                 + "subject_id INTEGER, "
@@ -152,7 +194,7 @@ public class DatabaseHelper extends SQLiteOpenHelper {
         db.execSQL(CREATE_MARKS_TABLE);
 
         // Attendance Table
-        String CREATE_ATTENDANCE_TABLE = "CREATE TABLE " + TABLE_ATTENDANCE + " ("
+        String CREATE_ATTENDANCE_TABLE = "CREATE TABLE IF NOT EXISTS " + TABLE_ATTENDANCE + " ("
                 + "id INTEGER PRIMARY KEY AUTOINCREMENT, "
                 + "student_id INTEGER, "
                 + "subject_id INTEGER, "
@@ -161,7 +203,7 @@ public class DatabaseHelper extends SQLiteOpenHelper {
         db.execSQL(CREATE_ATTENDANCE_TABLE);
 
         // Assignments Table
-        String CREATE_ASSIGNMENTS_TABLE = "CREATE TABLE " + TABLE_ASSIGNMENTS + " ("
+        String CREATE_ASSIGNMENTS_TABLE = "CREATE TABLE IF NOT EXISTS " + TABLE_ASSIGNMENTS + " ("
                 + "id INTEGER PRIMARY KEY AUTOINCREMENT, "
                 + "title TEXT, "
                 + "subject_id INTEGER, "
@@ -171,7 +213,7 @@ public class DatabaseHelper extends SQLiteOpenHelper {
         db.execSQL(CREATE_ASSIGNMENTS_TABLE);
 
         // Submissions Table
-        String CREATE_SUBMISSIONS_TABLE = "CREATE TABLE " + TABLE_SUBMISSIONS + " ("
+        String CREATE_SUBMISSIONS_TABLE = "CREATE TABLE IF NOT EXISTS " + TABLE_SUBMISSIONS + " ("
                 + "id INTEGER PRIMARY KEY AUTOINCREMENT, "
                 + "assignment_id INTEGER, "
                 + "student_id INTEGER, "
@@ -182,21 +224,29 @@ public class DatabaseHelper extends SQLiteOpenHelper {
         db.execSQL(CREATE_SUBMISSIONS_TABLE);
 
         // Results Table
-        String CREATE_RESULTS_TABLE = "CREATE TABLE " + TABLE_RESULTS + " ("
+        String CREATE_RESULTS_TABLE = "CREATE TABLE IF NOT EXISTS " + TABLE_RESULTS + " ("
                 + "id INTEGER PRIMARY KEY AUTOINCREMENT, "
                 + "student_id INTEGER, "
                 + "semester INTEGER, "
-                + "total_marks REAL, "
-                + "percentage REAL, "
+                + "total_marks REAL DEFAULT 0, "
+                + "percentage REAL DEFAULT 0, "
                 + "total_credits INTEGER DEFAULT 0, "
                 + "sgpa REAL, "
                 + "cgpa REAL, "
                 + "status TEXT DEFAULT 'DRAFT', "
-                + "published_date TEXT)";
+                + "published_date TEXT, "
+                + "version INTEGER DEFAULT 1, "
+                + "approval_status TEXT DEFAULT 'DRAFT', "
+                + "submitted_at TEXT, "
+                + "approved_at TEXT, "
+                + "approved_by TEXT, "
+                + "rejection_reason TEXT, "
+                + "student_uid TEXT, "
+                + "sync_status TEXT DEFAULT 'SYNCED')";
         db.execSQL(CREATE_RESULTS_TABLE);
 
         // Notifications Table
-        String CREATE_NOTIFICATIONS_TABLE = "CREATE TABLE " + TABLE_NOTIFICATIONS + " ("
+        String CREATE_NOTIFICATIONS_TABLE = "CREATE TABLE IF NOT EXISTS " + TABLE_NOTIFICATIONS + " ("
                 + "id INTEGER PRIMARY KEY AUTOINCREMENT, "
                 + "title TEXT, "
                 + "message TEXT, "
@@ -205,14 +255,14 @@ public class DatabaseHelper extends SQLiteOpenHelper {
         db.execSQL(CREATE_NOTIFICATIONS_TABLE);
 
         // Admins Table
-        String CREATE_ADMINS_TABLE = "CREATE TABLE " + TABLE_ADMINS + " ("
+        String CREATE_ADMINS_TABLE = "CREATE TABLE IF NOT EXISTS " + TABLE_ADMINS + " ("
                 + "id INTEGER PRIMARY KEY AUTOINCREMENT, "
                 + "email TEXT UNIQUE, "
                 + "password TEXT)";
         db.execSQL(CREATE_ADMINS_TABLE);
 
         // Activity Logs Table
-        String CREATE_ACTIVITY_LOGS_TABLE = "CREATE TABLE " + TABLE_ACTIVITY_LOGS + " ("
+        String CREATE_ACTIVITY_LOGS_TABLE = "CREATE TABLE IF NOT EXISTS " + TABLE_ACTIVITY_LOGS + " ("
                 + "id INTEGER PRIMARY KEY AUTOINCREMENT, "
                 + "teacher_name TEXT, "
                 + "action_title TEXT, "
@@ -238,6 +288,20 @@ public class DatabaseHelper extends SQLiteOpenHelper {
                 + "processed_by TEXT, "
                 + "admin_note TEXT)";
         db.execSQL(CREATE_PASSWORD_RESETS_TABLE);
+
+        // Student Attendance Logs Table for Class Attendance Monitoring
+        String CREATE_STUDENT_ATTENDANCE_LOGS_TABLE = "CREATE TABLE IF NOT EXISTS " + TABLE_STUDENT_ATTENDANCE_LOGS + " ("
+                + "id INTEGER PRIMARY KEY AUTOINCREMENT, "
+                + "student_id INTEGER, "
+                + "subject_name TEXT, "
+                + "total_classes INTEGER, "
+                + "attended_classes INTEGER, "
+                + "percentage REAL, "
+                + "logged_date TEXT, "
+                + "notes TEXT, "
+                + "threshold REAL, "
+                + "status TEXT)";
+        db.execSQL(CREATE_STUDENT_ATTENDANCE_LOGS_TABLE);
 
         // Seed Default Credentials
         seedDefaultData(db);
@@ -291,11 +355,14 @@ public class DatabaseHelper extends SQLiteOpenHelper {
     @Override
     public void onUpgrade(SQLiteDatabase db, int oldVersion, int newVersion) {
         if (oldVersion < 2) {
-            try { db.execSQL("ALTER TABLE " + TABLE_STUDENTS + " ADD COLUMN login_id TEXT"); } catch (Exception ignored) {}
-            try { db.execSQL("ALTER TABLE " + TABLE_STUDENTS + " ADD COLUMN firebase_uid TEXT"); } catch (Exception ignored) {}
-            try { db.execSQL("ALTER TABLE " + TABLE_STUDENTS + " ADD COLUMN reg_no TEXT"); } catch (Exception ignored) {}
-            try { db.execSQL("ALTER TABLE " + TABLE_TEACHERS + " ADD COLUMN login_id TEXT"); } catch (Exception ignored) {}
-            try { db.execSQL("ALTER TABLE " + TABLE_TEACHERS + " ADD COLUMN firebase_uid TEXT"); } catch (Exception ignored) {}
+            Set<String> studentCols = getTableColumns(db, TABLE_STUDENTS);
+            addColumnIfNotExists(db, TABLE_STUDENTS, studentCols, "login_id", "TEXT");
+            addColumnIfNotExists(db, TABLE_STUDENTS, studentCols, "firebase_uid", "TEXT");
+            addColumnIfNotExists(db, TABLE_STUDENTS, studentCols, "reg_no", "TEXT");
+
+            Set<String> teacherCols = getTableColumns(db, TABLE_TEACHERS);
+            addColumnIfNotExists(db, TABLE_TEACHERS, teacherCols, "login_id", "TEXT");
+            addColumnIfNotExists(db, TABLE_TEACHERS, teacherCols, "firebase_uid", "TEXT");
         }
     }
 
@@ -355,8 +422,8 @@ public class DatabaseHelper extends SQLiteOpenHelper {
         try {
             cursor = db.query(TABLE_STUDENTS,
                     new String[]{"id", "name", "email", "reg_no", "password", "login_id"},
-                    "(reg_no=? OR email=? OR login_id=?)",
-                    new String[]{regNoOrEmail, regNoOrEmail, regNoOrEmail},
+                    "(reg_no=? OR register_number=? OR email=? OR login_id=?)",
+                    new String[]{regNoOrEmail, regNoOrEmail, regNoOrEmail, regNoOrEmail},
                     null, null, null);
         } catch (Exception e) {
             // Fallback if older schema
@@ -396,11 +463,11 @@ public class DatabaseHelper extends SQLiteOpenHelper {
         return null;
     }
 
-    public boolean resetTeacherPassword(String email, String newPassword) {
+    public boolean resetTeacherPassword(String emailOrId, String newPassword) {
         SQLiteDatabase db = this.getWritableDatabase();
         ContentValues cv = new ContentValues();
         cv.put("password", PasswordUtils.hashPassword(newPassword));
-        int rows = db.update(TABLE_TEACHERS, cv, "email=?", new String[]{email});
+        int rows = db.update(TABLE_TEACHERS, cv, "email=? OR employee_id=? OR login_id=?", new String[]{emailOrId, emailOrId, emailOrId});
         return rows > 0;
     }
 
@@ -408,7 +475,7 @@ public class DatabaseHelper extends SQLiteOpenHelper {
         SQLiteDatabase db = this.getWritableDatabase();
         ContentValues cv = new ContentValues();
         cv.put("password", PasswordUtils.hashPassword(newPassword));
-        int rows = db.update(TABLE_STUDENTS, cv, "email=? OR reg_no=?", new String[]{identifier, identifier});
+        int rows = db.update(TABLE_STUDENTS, cv, "email=? OR reg_no=? OR register_number=? OR login_id=?", new String[]{identifier, identifier, identifier, identifier});
         return rows > 0;
     }
 
@@ -611,6 +678,7 @@ public class DatabaseHelper extends SQLiteOpenHelper {
         ContentValues cv = new ContentValues();
         cv.put("name", student.getName());
         cv.put("reg_no", student.getRegNo());
+        cv.put("register_number", student.getRegNo());
         cv.put("department", student.getDepartment());
         cv.put("semester", student.getSemester());
         cv.put("email", student.getEmail());
@@ -653,6 +721,7 @@ public class DatabaseHelper extends SQLiteOpenHelper {
         ContentValues cv = new ContentValues();
         cv.put("name", student.getName());
         cv.put("reg_no", student.getRegNo());
+        cv.put("register_number", student.getRegNo());
         cv.put("department", student.getDepartment());
         cv.put("semester", student.getSemester());
         cv.put("email", student.getEmail());
@@ -660,7 +729,16 @@ public class DatabaseHelper extends SQLiteOpenHelper {
         if (student.getPhotoUri() != null) {
             cv.put("photo_uri", student.getPhotoUri());
         }
-        int rows = db.update(TABLE_STUDENTS, cv, "id=?", new String[]{String.valueOf(student.getId())});
+        int rows = 0;
+        if (student.getId() > 0) {
+            rows = db.update(TABLE_STUDENTS, cv, "id=?", new String[]{String.valueOf(student.getId())});
+        }
+        if (rows == 0 && student.getRegNo() != null && !student.getRegNo().isEmpty()) {
+            rows = db.update(TABLE_STUDENTS, cv, "reg_no=? OR register_number=?", new String[]{student.getRegNo(), student.getRegNo()});
+        }
+        if (rows == 0 && student.getEmail() != null && !student.getEmail().isEmpty()) {
+            rows = db.update(TABLE_STUDENTS, cv, "email=?", new String[]{student.getEmail()});
+        }
         if (rows > 0) {
             try { FirestoreHelper.getInstance().syncStudent(student); } catch (Exception ignored) {}
         }
@@ -672,6 +750,7 @@ public class DatabaseHelper extends SQLiteOpenHelper {
         ContentValues cv = new ContentValues();
         cv.put("name", student.getName());
         cv.put("reg_no", student.getRegNo());
+        cv.put("register_number", student.getRegNo());
         cv.put("department", student.getDepartment());
         cv.put("semester", student.getSemester());
         cv.put("email", student.getEmail());
@@ -682,11 +761,58 @@ public class DatabaseHelper extends SQLiteOpenHelper {
         if (student.getPhotoUri() != null) {
             cv.put("photo_uri", student.getPhotoUri());
         }
-        int rows = db.update(TABLE_STUDENTS, cv, "id=?", new String[]{String.valueOf(student.getId())});
+        int rows = 0;
+        if (student.getId() > 0) {
+            rows = db.update(TABLE_STUDENTS, cv, "id=?", new String[]{String.valueOf(student.getId())});
+        }
+        if (rows == 0 && student.getRegNo() != null && !student.getRegNo().isEmpty()) {
+            rows = db.update(TABLE_STUDENTS, cv, "reg_no=? OR register_number=?", new String[]{student.getRegNo(), student.getRegNo()});
+        }
+        if (rows == 0 && student.getEmail() != null && !student.getEmail().isEmpty()) {
+            rows = db.update(TABLE_STUDENTS, cv, "email=?", new String[]{student.getEmail()});
+        }
         if (rows > 0) {
             try { FirestoreHelper.getInstance().syncStudent(student); } catch (Exception ignored) {}
         }
         return rows > 0;
+    }
+
+    public boolean updateStudentPhotoUri(int studentId, String regNo, String photoUri) {
+        SQLiteDatabase db = this.getWritableDatabase();
+        ContentValues cv = new ContentValues();
+        cv.put("photo_uri", photoUri != null ? photoUri : "");
+        int rows = 0;
+        if (studentId > 0) {
+            rows = db.update(TABLE_STUDENTS, cv, "id=?", new String[]{String.valueOf(studentId)});
+        }
+        if (rows == 0 && regNo != null && !regNo.isEmpty()) {
+            rows = db.update(TABLE_STUDENTS, cv, "reg_no=? OR register_number=?", new String[]{regNo, regNo});
+        }
+        return rows > 0;
+    }
+
+    public String getStudentPhotoUri(int studentId, String regNo) {
+        SQLiteDatabase db = this.getReadableDatabase();
+        Cursor cursor = null;
+        try {
+            if (studentId > 0) {
+                cursor = db.query(TABLE_STUDENTS, new String[]{"photo_uri"}, "id=?", new String[]{String.valueOf(studentId)}, null, null, null);
+            }
+            if ((cursor == null || !cursor.moveToFirst()) && regNo != null && !regNo.isEmpty()) {
+                if (cursor != null) cursor.close();
+                cursor = db.query(TABLE_STUDENTS, new String[]{"photo_uri"}, "reg_no=? OR register_number=?", new String[]{regNo, regNo}, null, null, null);
+            }
+            if (cursor != null && cursor.moveToFirst()) {
+                int col = cursor.getColumnIndex("photo_uri");
+                if (col != -1 && !cursor.isNull(col)) {
+                    return cursor.getString(col);
+                }
+            }
+        } catch (Exception ignored) {
+        } finally {
+            if (cursor != null) cursor.close();
+        }
+        return null;
     }
 
     public Student getStudentById(int studentId) {
@@ -1596,13 +1722,38 @@ public class DatabaseHelper extends SQLiteOpenHelper {
             res.put("sgpa", sgpa);
             res.put("cgpa", cgpa);
             res.put("total_credits", totalCredits);
+            res.put("status", "PUBLISHED");
+            res.put("approval_status", "APPROVED");
             db.insert(TABLE_RESULTS, null, res);
 
             for (int i = 0; i < gradeItems.size(); i++) {
                 SubjectGradeItem item = gradeItems.get(i);
+                int subId = i + 1;
+                Cursor curSub = null;
+                try {
+                    String searchCode = item.getSubjectCode() != null ? item.getSubjectCode() : "";
+                    String searchName = item.getSubjectName() != null ? item.getSubjectName() : "";
+                    curSub = db.rawQuery("SELECT id FROM " + TABLE_SUBJECTS + " WHERE subject_code = ? OR subject_name = ?", new String[]{searchCode, searchName});
+                    if (curSub != null && curSub.moveToFirst()) {
+                        subId = curSub.getInt(0);
+                    } else {
+                        ContentValues scv = new ContentValues();
+                        scv.put("subject_code", !searchCode.isEmpty() ? searchCode : "SUB" + (i + 1));
+                        scv.put("subject_name", !searchName.isEmpty() ? searchName : "Subject " + (i + 1));
+                        scv.put("credits", item.getCredits() > 0 ? item.getCredits() : 4);
+                        scv.put("semester", semester);
+                        scv.put("department", "General");
+                        long newSubId = db.insert(TABLE_SUBJECTS, null, scv);
+                        if (newSubId > 0) subId = (int) newSubId;
+                    }
+                } catch (Exception ignored) {
+                } finally {
+                    if (curSub != null) curSub.close();
+                }
+
                 ContentValues m = new ContentValues();
                 m.put("student_id", studentId);
-                m.put("subject_id", i + 1);
+                m.put("subject_id", subId);
                 m.put("internal1", item.getInternalMarks());
                 m.put("university_exam", item.getExternalMarks());
                 m.put("total_marks", item.getTotalMarks());
@@ -1610,7 +1761,7 @@ public class DatabaseHelper extends SQLiteOpenHelper {
                 m.put("grade", item.getGrade());
                 m.put("grade_point", (double) item.getGradePoint());
 
-                db.delete(TABLE_MARKS, "student_id=? AND subject_id=?", new String[]{String.valueOf(studentId), String.valueOf(i + 1)});
+                db.delete(TABLE_MARKS, "student_id=? AND subject_id=?", new String[]{String.valueOf(studentId), String.valueOf(subId)});
                 db.insert(TABLE_MARKS, null, m);
             }
 
@@ -2263,6 +2414,32 @@ public class DatabaseHelper extends SQLiteOpenHelper {
             e.printStackTrace();
         }
         return count;
+    }
+
+    public boolean updateTeacherPhotoUri(String email, String photoUri) {
+        SQLiteDatabase db = this.getWritableDatabase();
+        ContentValues cv = new ContentValues();
+        cv.put("photo_uri", photoUri != null ? photoUri : "");
+        int rows = db.update(TABLE_TEACHERS, cv, "email=?", new String[]{email});
+        return rows > 0;
+    }
+
+    public String getTeacherPhotoUri(String email) {
+        SQLiteDatabase db = this.getReadableDatabase();
+        Cursor cursor = null;
+        try {
+            cursor = db.query(TABLE_TEACHERS, new String[]{"photo_uri"}, "email=?", new String[]{email}, null, null, null);
+            if (cursor != null && cursor.moveToFirst()) {
+                int col = cursor.getColumnIndex("photo_uri");
+                if (col != -1 && !cursor.isNull(col)) {
+                    return cursor.getString(col);
+                }
+            }
+        } catch (Exception ignored) {
+        } finally {
+            if (cursor != null) cursor.close();
+        }
+        return null;
     }
 
     // Teacher Activity Logging
@@ -3072,6 +3249,96 @@ public class DatabaseHelper extends SQLiteOpenHelper {
                 cursor.close();
             }
         } catch (Exception ignored) {}
+    }
+
+    // ==========================================
+    // STUDENT ATTENDANCE MONITORING MODULE
+    // ==========================================
+
+    public long addStudentAttendanceLog(int studentId, String subjectName, int totalClasses, int attendedClasses,
+                                        double percentage, String loggedDate, String notes, double threshold) {
+        SQLiteDatabase db = this.getWritableDatabase();
+        ContentValues cv = new ContentValues();
+        cv.put("student_id", studentId);
+        cv.put("subject_name", (subjectName != null && !subjectName.trim().isEmpty()) ? subjectName.trim() : "General Subject");
+        cv.put("total_classes", Math.max(1, totalClasses));
+        cv.put("attended_classes", Math.max(0, attendedClasses));
+        cv.put("percentage", percentage);
+        String dateStr = (loggedDate != null && !loggedDate.trim().isEmpty()) ? loggedDate.trim() :
+                new java.text.SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.getDefault()).format(new java.util.Date());
+        cv.put("logged_date", dateStr);
+        cv.put("notes", notes != null ? notes.trim() : "");
+        cv.put("threshold", threshold);
+
+        String status = (percentage < threshold) ? "BELOW_THRESHOLD" : "NORMAL";
+        cv.put("status", status);
+
+        long id = db.insert(TABLE_STUDENT_ATTENDANCE_LOGS, null, cv);
+
+        // If attendance falls below threshold, automatically dispatch in-app notification & activity log
+        if (percentage < threshold) {
+            String alertTitle = "⚠️ Low Attendance Alert: " + subjectName;
+            String alertMsg = String.format(Locale.US,
+                    "Your logged attendance for %s is %.1f%%, which is below your %.0f%% target threshold. Attend upcoming classes to avoid shortage!",
+                    subjectName, percentage, threshold);
+            addNotification(alertTitle, alertMsg, dateStr, "STUDENT", "ATTENDANCE_ALERT", "Attendance Monitor");
+        }
+
+        return id;
+    }
+
+    public List<StudentAttendanceLog> getStudentAttendanceLogs(int studentId) {
+        List<StudentAttendanceLog> list = new ArrayList<>();
+        SQLiteDatabase db = this.getReadableDatabase();
+        Cursor cursor = null;
+        try {
+            cursor = db.query(TABLE_STUDENT_ATTENDANCE_LOGS, null, "student_id=?",
+                    new String[]{String.valueOf(studentId)}, null, null, "id DESC");
+            if (cursor != null && cursor.moveToFirst()) {
+                do {
+                    int id = cursor.getInt(cursor.getColumnIndexOrThrow("id"));
+                    int sId = cursor.getInt(cursor.getColumnIndexOrThrow("student_id"));
+                    String subName = cursor.getString(cursor.getColumnIndexOrThrow("subject_name"));
+                    int total = cursor.getInt(cursor.getColumnIndexOrThrow("total_classes"));
+                    int attended = cursor.getInt(cursor.getColumnIndexOrThrow("attended_classes"));
+                    double pct = cursor.getDouble(cursor.getColumnIndexOrThrow("percentage"));
+                    String date = cursor.getString(cursor.getColumnIndexOrThrow("logged_date"));
+                    String notes = cursor.getString(cursor.getColumnIndexOrThrow("notes"));
+                    double thresh = cursor.getDouble(cursor.getColumnIndexOrThrow("threshold"));
+                    String status = cursor.getString(cursor.getColumnIndexOrThrow("status"));
+
+                    list.add(new StudentAttendanceLog(id, sId, subName, total, attended, pct, date, notes, thresh, status));
+                } while (cursor.moveToNext());
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        } finally {
+            if (cursor != null) cursor.close();
+        }
+        return list;
+    }
+
+    public boolean deleteStudentAttendanceLog(int logId) {
+        SQLiteDatabase db = this.getWritableDatabase();
+        int rows = db.delete(TABLE_STUDENT_ATTENDANCE_LOGS, "id=?", new String[]{String.valueOf(logId)});
+        return rows > 0;
+    }
+
+    public int getBelowThresholdAttendanceLogsCount(int studentId) {
+        SQLiteDatabase db = this.getReadableDatabase();
+        Cursor cursor = null;
+        try {
+            cursor = db.rawQuery("SELECT COUNT(*) FROM " + TABLE_STUDENT_ATTENDANCE_LOGS
+                    + " WHERE student_id=? AND status='BELOW_THRESHOLD'", new String[]{String.valueOf(studentId)});
+            if (cursor != null && cursor.moveToFirst()) {
+                return cursor.getInt(0);
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        } finally {
+            if (cursor != null) cursor.close();
+        }
+        return 0;
     }
 }
 

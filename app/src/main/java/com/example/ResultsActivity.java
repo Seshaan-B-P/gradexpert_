@@ -8,6 +8,7 @@ import android.widget.AutoCompleteTextView;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.TextView;
+import android.widget.Toast;
 
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.recyclerview.widget.LinearLayoutManager;
@@ -46,6 +47,13 @@ public class ResultsActivity extends AppCompatActivity {
 
     private TextView tvStudentTotalMarks, tvStudentPercentage, tvStudentSGPA, tvStudentCGPA;
     private TextView tvStudentPublishedDate;
+    private com.google.android.material.button.MaterialButton btnExportStudentPdf;
+    private Result currentDisplayedResult;
+
+    private com.github.mikephil.charting.charts.LineChart chartResultsTrend;
+    private com.google.android.material.chip.ChipGroup chipGroupResultsTrend;
+    private List<com.example.model.SemesterPerformanceTrend> multiSemTrends;
+    private com.example.utils.AcademicChartHelper.MetricMode currentTrendMetric = com.example.utils.AcademicChartHelper.MetricMode.SGPA;
 
     private LinearLayout layoutEmptyStateResults;
     private int selectedSemester = 3;
@@ -63,6 +71,7 @@ public class ResultsActivity extends AppCompatActivity {
         setupSemesterDropdown();
         setupListeners();
         loadPublishedResult();
+        setupMultiSemesterTrendChart();
     }
 
     private Chip chipStudentResultVersion;
@@ -83,6 +92,10 @@ public class ResultsActivity extends AppCompatActivity {
         tvStudentSGPA = findViewById(R.id.tvStudentSGPA);
         tvStudentCGPA = findViewById(R.id.tvStudentCGPA);
         tvStudentPublishedDate = findViewById(R.id.tvStudentPublishedDate);
+        btnExportStudentPdf = findViewById(R.id.btnExportStudentPdfResults);
+
+        chartResultsTrend = findViewById(R.id.chartResultsTrend);
+        chipGroupResultsTrend = findViewById(R.id.chipGroupResultsTrend);
 
         layoutEmptyStateResults = findViewById(R.id.layoutEmptyStateResults);
 
@@ -151,6 +164,38 @@ public class ResultsActivity extends AppCompatActivity {
 
     private void setupListeners() {
         btnBack.setOnClickListener(v -> finish());
+        if (btnExportStudentPdf != null) {
+            btnExportStudentPdf.setOnClickListener(v -> exportCurrentGradeReport());
+        }
+        if (chipGroupResultsTrend != null) {
+            chipGroupResultsTrend.setOnCheckedChangeListener((group, checkedId) -> {
+                if (checkedId == R.id.chipResultsTrendSgpa) {
+                    currentTrendMetric = com.example.utils.AcademicChartHelper.MetricMode.SGPA;
+                } else if (checkedId == R.id.chipResultsTrendCgpa) {
+                    currentTrendMetric = com.example.utils.AcademicChartHelper.MetricMode.CGPA;
+                } else if (checkedId == R.id.chipResultsTrendPct) {
+                    currentTrendMetric = com.example.utils.AcademicChartHelper.MetricMode.PERCENTAGE;
+                } else if (checkedId == R.id.chipResultsTrendDual) {
+                    currentTrendMetric = com.example.utils.AcademicChartHelper.MetricMode.COMPARISON;
+                }
+                renderMultiSemesterTrendChart();
+            });
+        }
+    }
+
+    private void setupMultiSemesterTrendChart() {
+        int studentId = currentStudent != null ? currentStudent.getId() : 1;
+        multiSemTrends = com.example.utils.AcademicChartHelper.loadMultiSemesterTrends(dbHelper, studentId, currentStudent);
+        renderMultiSemesterTrendChart();
+    }
+
+    private void renderMultiSemesterTrendChart() {
+        if (chartResultsTrend == null) return;
+        if (multiSemTrends == null) {
+            setupMultiSemesterTrendChart();
+            return;
+        }
+        com.example.utils.AcademicChartHelper.renderAcademicTrendLineChart(this, chartResultsTrend, multiSemTrends, currentTrendMetric);
     }
 
     private void loadPublishedResult() {
@@ -213,6 +258,7 @@ public class ResultsActivity extends AppCompatActivity {
     }
 
     private void displayApprovedResult(Result result, int studentId) {
+        currentDisplayedResult = result;
         layoutResultsContent.setVisibility(View.VISIBLE);
         layoutEmptyStateResults.setVisibility(View.GONE);
 
@@ -263,6 +309,33 @@ public class ResultsActivity extends AppCompatActivity {
             case 7: return "VII";
             case 8: return "VIII";
             default: return String.valueOf(sem);
+        }
+    }
+
+    private void exportCurrentGradeReport() {
+        if (currentDisplayedResult == null) {
+            Toast.makeText(this, "No approved result available to export.", Toast.LENGTH_SHORT).show();
+            return;
+        }
+
+        java.io.File pdfFile = com.example.utils.PdfReportGenerator.generateStudentGradeReportPdf(
+                this,
+                currentStudent,
+                selectedSemester,
+                currentDisplayedResult,
+                subjectList
+        );
+
+        if (pdfFile != null && pdfFile.exists()) {
+            Toast.makeText(this, "PDF saved to Documents/Grade_Reports/" + pdfFile.getName(), Toast.LENGTH_SHORT).show();
+            com.example.utils.PdfReportGenerator.showExportSuccessDialog(
+                    this,
+                    pdfFile,
+                    currentStudent != null ? currentStudent.getName() : "Student",
+                    "Semester " + selectedSemester
+            );
+        } else {
+            Toast.makeText(this, "Failed to generate PDF grade report.", Toast.LENGTH_SHORT).show();
         }
     }
 }

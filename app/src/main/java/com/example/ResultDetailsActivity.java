@@ -33,8 +33,10 @@ public class ResultDetailsActivity extends AppCompatActivity {
     private DatabaseHelper dbHelper;
     private SessionManager sessionManager;
     private Student currentStudent;
+    private Result currentResult;
 
-    private ImageView btnBack, btnShare;
+    private ImageView btnBack, btnShare, btnExportPdfToolbar;
+    private com.google.android.material.button.MaterialButton btnExportPdfBottom;
     private TextView tvStudentName, tvStudentRegNo, tvStudentDeptSem, tvPublishedDate;
     private Chip chipStatus, chipVersion;
     private RecyclerView rvSubjectResults;
@@ -63,6 +65,8 @@ public class ResultDetailsActivity extends AppCompatActivity {
     private void initViews() {
         btnBack = findViewById(R.id.btnBackResultDetails);
         btnShare = findViewById(R.id.btnShareResultDetails);
+        btnExportPdfToolbar = findViewById(R.id.btnExportPdfResultDetails);
+        btnExportPdfBottom = findViewById(R.id.btnExportPdfResultDetailsBottom);
 
         tvStudentName = findViewById(R.id.tvDetailStudentName);
         tvStudentRegNo = findViewById(R.id.tvDetailStudentRegNo);
@@ -79,6 +83,13 @@ public class ResultDetailsActivity extends AppCompatActivity {
 
         btnBack.setOnClickListener(v -> finish());
         btnShare.setOnClickListener(v -> shareGradeReport());
+
+        if (btnExportPdfToolbar != null) {
+            btnExportPdfToolbar.setOnClickListener(v -> exportGradeReportPdf());
+        }
+        if (btnExportPdfBottom != null) {
+            btnExportPdfBottom.setOnClickListener(v -> exportGradeReportPdf());
+        }
 
         rvSubjectResults.setLayoutManager(new LinearLayoutManager(this));
         adapter = new DetailedMarksAdapter();
@@ -104,23 +115,23 @@ public class ResultDetailsActivity extends AppCompatActivity {
             return;
         }
 
-        Result result = dbHelper.getResultForStudentAndSemester(studentId, semester);
-        if (isStudent && (result == null || (!"APPROVED".equalsIgnoreCase(result.getStatus()) && !"PUBLISHED".equalsIgnoreCase(result.getStatus())))) {
+        currentResult = dbHelper.getResultForStudentAndSemester(studentId, semester);
+        if (isStudent && (currentResult == null || (!"APPROVED".equalsIgnoreCase(currentResult.getStatus()) && !"PUBLISHED".equalsIgnoreCase(currentResult.getStatus())))) {
             Toast.makeText(this, "Result not approved yet.", Toast.LENGTH_SHORT).show();
             finish();
             return;
         }
 
-        if (result != null) {
-            tvTotalMarks.setText(String.format(Locale.US, "%.0f", result.getTotalMarks()));
-            tvPercentage.setText(String.format(Locale.US, "%.1f%%", result.getPercentage()));
-            tvSGPA.setText(String.format(Locale.US, "%.2f", result.getSgpa()));
-            tvCGPA.setText(String.format(Locale.US, "%.2f", result.getCgpa()));
+        if (currentResult != null) {
+            tvTotalMarks.setText(String.format(Locale.US, "%.0f", currentResult.getTotalMarks()));
+            tvPercentage.setText(String.format(Locale.US, "%.1f%%", currentResult.getPercentage()));
+            tvSGPA.setText(String.format(Locale.US, "%.2f", currentResult.getSgpa()));
+            tvCGPA.setText(String.format(Locale.US, "%.2f", currentResult.getCgpa()));
 
-            String status = result.getStatus() != null ? result.getStatus() : "APPROVED";
+            String status = currentResult.getStatus() != null ? currentResult.getStatus() : "APPROVED";
             chipStatus.setText(status);
 
-            int version = result.getVersion() > 0 ? result.getVersion() : 1;
+            int version = currentResult.getVersion() > 0 ? currentResult.getVersion() : 1;
             if (version > 1) {
                 chipVersion.setText("Updated Result • v" + version);
                 chipVersion.setVisibility(View.VISIBLE);
@@ -129,7 +140,7 @@ public class ResultDetailsActivity extends AppCompatActivity {
                 chipVersion.setVisibility(View.VISIBLE);
             }
 
-            String date = result.getApprovedAtString() != null ? result.getApprovedAtString() : result.getPublishedDate();
+            String date = currentResult.getApprovedAtString() != null ? currentResult.getApprovedAtString() : currentResult.getPublishedDate();
             tvPublishedDate.setText("Result Declared: " + (date != null ? date : "Recently"));
         }
 
@@ -137,22 +148,61 @@ public class ResultDetailsActivity extends AppCompatActivity {
         adapter.notifyDataSetChanged();
     }
 
-    private void shareGradeReport() {
-        String report = "GradeXpert Official Grade Statement\n"
-                + "Student: " + (currentStudent != null ? currentStudent.getName() : "Student") + "\n"
-                + "Reg No: " + (currentStudent != null ? currentStudent.getRegNo() : "") + "\n"
-                + "Semester: " + semester + "\n"
-                + "SGPA: " + tvSGPA.getText().toString() + " | CGPA: " + tvCGPA.getText().toString() + "\n"
-                + "Percentage: " + tvPercentage.getText().toString() + "\n"
-                + "Status: PUBLISHED";
+    private void exportGradeReportPdf() {
+        java.io.File pdfFile = com.example.utils.PdfReportGenerator.generateStudentGradeReportPdf(
+                this,
+                currentStudent,
+                semester,
+                currentResult,
+                markList
+        );
 
-        Intent sendIntent = new Intent();
-        sendIntent.setAction(Intent.ACTION_SEND);
-        sendIntent.putExtra(Intent.EXTRA_TEXT, report);
-        sendIntent.setType("text/plain");
-        Intent shareIntent = Intent.createChooser(sendIntent, "Share Grade Report");
-        startActivity(shareIntent);
+        if (pdfFile != null && pdfFile.exists()) {
+            Toast.makeText(this, "PDF Grade Report saved to: Documents/Grade_Reports/" + pdfFile.getName(), Toast.LENGTH_SHORT).show();
+            com.example.utils.PdfReportGenerator.showExportSuccessDialog(
+                    this,
+                    pdfFile,
+                    currentStudent != null ? currentStudent.getName() : "Student",
+                    "Semester " + semester
+            );
+        } else {
+            Toast.makeText(this, "Failed to generate PDF grade report.", Toast.LENGTH_SHORT).show();
+        }
     }
+
+    private void shareGradeReport() {
+        java.io.File pdfFile = com.example.utils.PdfReportGenerator.generateStudentGradeReportPdf(
+                this,
+                currentStudent,
+                semester,
+                currentResult,
+                markList
+        );
+
+        if (pdfFile != null && pdfFile.exists()) {
+            com.example.utils.PdfReportGenerator.sharePdfFile(
+                    this,
+                    pdfFile,
+                    "Grade Report - " + (currentStudent != null ? currentStudent.getName() : "Student")
+            );
+        } else {
+            String report = "GradeXpert Official Grade Statement\n"
+                    + "Student: " + (currentStudent != null ? currentStudent.getName() : "Student") + "\n"
+                    + "Reg No: " + (currentStudent != null ? currentStudent.getRegNo() : "") + "\n"
+                    + "Semester: " + semester + "\n"
+                    + "SGPA: " + tvSGPA.getText().toString() + " | CGPA: " + tvCGPA.getText().toString() + "\n"
+                    + "Percentage: " + tvPercentage.getText().toString() + "\n"
+                    + "Status: PUBLISHED";
+
+            Intent sendIntent = new Intent();
+            sendIntent.setAction(Intent.ACTION_SEND);
+            sendIntent.putExtra(Intent.EXTRA_TEXT, report);
+            sendIntent.setType("text/plain");
+            Intent shareIntent = Intent.createChooser(sendIntent, "Share Grade Report");
+            startActivity(shareIntent);
+        }
+    }
+
 
     private class DetailedMarksAdapter extends RecyclerView.Adapter<DetailedMarksAdapter.ViewHolder> {
 

@@ -61,6 +61,11 @@ public class StudentDashboardActivity extends AppCompatActivity {
     private TextView tvStudentName, tvStudentRegNo, tvStudentDeptSem;
     private TextView tvStatCGPA, tvStatSGPA, tvStatAttendance, tvStatCredits;
     private LineChart sgpaLineChart;
+    private TextView tvTrendCgpaVal, tvTrendPeakVal, tvTrendDeltaVal;
+    private com.google.android.material.chip.ChipGroup chipGroupTrendMetric;
+    private com.google.android.material.chip.Chip chipTrendSgpa, chipTrendCgpa, chipTrendPct, chipTrendDual;
+    private List<com.example.model.SemesterPerformanceTrend> currentTrends;
+    private com.example.utils.AcademicChartHelper.MetricMode currentMetricMode = com.example.utils.AcademicChartHelper.MetricMode.SGPA;
     private BarChart subjectMarksBarChart;
     private PieChart gradePieChart;
     private Chip chipPerformanceRating;
@@ -69,6 +74,7 @@ public class StudentDashboardActivity extends AppCompatActivity {
     private ImageView btnStudentNotificationsHeader, btnStudentMenu, btnStudentHeaderLogout;
     private TextView tvStudentUnreadBadge;
     private View cardStudentProfileAvatar;
+    private ImageView imgStudentAvatar;
     private TextView tvRefreshNotifications;
     private View btnStudentDashboardLogout;
     private TextView tvAccountStudentName, tvAccountStudentInfo;
@@ -79,6 +85,8 @@ public class StudentDashboardActivity extends AppCompatActivity {
 
     // Secondary Quick Service Buttons
     private LinearLayout quickResults, quickCalculator, quickNotifications, quickProfile;
+
+    private com.google.firebase.firestore.ListenerRegistration gradeAlertsListener = null;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -95,6 +103,8 @@ public class StudentDashboardActivity extends AppCompatActivity {
 
         setContentView(R.layout.activity_student_dashboard);
 
+        checkNotificationPermission();
+
         try {
             MyFirebaseMessagingService.registerFcmToken(this);
         } catch (Exception ignored) {}
@@ -109,6 +119,14 @@ public class StudentDashboardActivity extends AppCompatActivity {
         setupQuickAccessClickListeners();
         setupBottomNavigation();
         setupWindowInsets();
+    }
+
+    private void checkNotificationPermission() {
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU) {
+            if (checkSelfPermission(android.Manifest.permission.POST_NOTIFICATIONS) != android.content.pm.PackageManager.PERMISSION_GRANTED) {
+                requestPermissions(new String[]{android.Manifest.permission.POST_NOTIFICATIONS}, 1002);
+            }
+        }
     }
 
     private void setupWindowInsets() {
@@ -146,6 +164,30 @@ public class StudentDashboardActivity extends AppCompatActivity {
         tvStatCredits = findViewById(R.id.tvStatCredits);
 
         sgpaLineChart = findViewById(R.id.sgpaLineChart);
+        tvTrendCgpaVal = findViewById(R.id.tvTrendCgpaVal);
+        tvTrendPeakVal = findViewById(R.id.tvTrendPeakVal);
+        tvTrendDeltaVal = findViewById(R.id.tvTrendDeltaVal);
+        chipGroupTrendMetric = findViewById(R.id.chipGroupTrendMetric);
+        chipTrendSgpa = findViewById(R.id.chipTrendSgpa);
+        chipTrendCgpa = findViewById(R.id.chipTrendCgpa);
+        chipTrendPct = findViewById(R.id.chipTrendPct);
+        chipTrendDual = findViewById(R.id.chipTrendDual);
+
+        if (chipGroupTrendMetric != null) {
+            chipGroupTrendMetric.setOnCheckedStateChangeListener((group, checkedIds) -> {
+                if (checkedIds.contains(R.id.chipTrendCgpa)) {
+                    currentMetricMode = com.example.utils.AcademicChartHelper.MetricMode.CGPA;
+                } else if (checkedIds.contains(R.id.chipTrendPct)) {
+                    currentMetricMode = com.example.utils.AcademicChartHelper.MetricMode.PERCENTAGE;
+                } else if (checkedIds.contains(R.id.chipTrendDual)) {
+                    currentMetricMode = com.example.utils.AcademicChartHelper.MetricMode.COMPARISON;
+                } else {
+                    currentMetricMode = com.example.utils.AcademicChartHelper.MetricMode.SGPA;
+                }
+                renderTrendChart();
+            });
+        }
+
         subjectMarksBarChart = findViewById(R.id.subjectMarksBarChart);
         gradePieChart = findViewById(R.id.gradePieChart);
         chipPerformanceRating = findViewById(R.id.chipPerformanceRating);
@@ -158,6 +200,7 @@ public class StudentDashboardActivity extends AppCompatActivity {
         tvAccountStudentName = findViewById(R.id.tvAccountStudentName);
         tvAccountStudentInfo = findViewById(R.id.tvAccountStudentInfo);
         cardStudentProfileAvatar = findViewById(R.id.cardStudentAvatar);
+        imgStudentAvatar = findViewById(R.id.imgStudentAvatar);
         tvRefreshNotifications = findViewById(R.id.tvRefreshNotifications);
 
         // Quick Grid Buttons
@@ -204,12 +247,19 @@ public class StudentDashboardActivity extends AppCompatActivity {
             tvStudentDeptSem.setText("[" + pLevel + "] " + currentStudent.getDepartment() + " • " + currentStudent.getSemester());
             if (tvAccountStudentName != null) tvAccountStudentName.setText(currentStudent.getName());
             if (tvAccountStudentInfo != null) tvAccountStudentInfo.setText(currentStudent.getRegisterNo() + " • " + pLevel + " " + currentStudent.getDepartment());
+
+            com.example.utils.GradeNotificationHelper.subscribeStudentToGradeAlerts(this, currentStudent);
+            setupGradeAlertsListener(currentStudent.getRegisterNo());
         } else {
             tvStudentName.setText(sessionManager.getUserName());
             tvStudentRegNo.setText(sessionManager.getIdentifier());
             tvStudentDeptSem.setText("Student Portal • GradeXpert");
             if (tvAccountStudentName != null) tvAccountStudentName.setText(sessionManager.getUserName());
             if (tvAccountStudentInfo != null) tvAccountStudentInfo.setText(sessionManager.getIdentifier() + " • Student Session");
+
+            if (sessionManager.getIdentifier() != null) {
+                setupGradeAlertsListener(sessionManager.getIdentifier());
+            }
 
             // Query Firestore in background
             String idf = sessionManager.getIdentifier();
@@ -252,6 +302,27 @@ public class StudentDashboardActivity extends AppCompatActivity {
             } else {
                 tvStudentUnreadBadge.setVisibility(View.GONE);
             }
+        }
+
+        if (imgStudentAvatar != null) {
+            String photoUri = sessionManager.getProfilePhotoUri();
+            String regNo = currentStudent != null ? currentStudent.getRegNo() : sessionManager.getIdentifier();
+            if (photoUri == null || photoUri.isEmpty()) {
+                if (currentStudent != null && currentStudent.getPhotoUri() != null && !currentStudent.getPhotoUri().isEmpty()) {
+                    photoUri = currentStudent.getPhotoUri();
+                }
+            }
+            if (photoUri == null || photoUri.isEmpty()) {
+                photoUri = dbHelper.getStudentPhotoUri(sessionManager.getUserId(), regNo);
+            }
+            if ((photoUri == null || photoUri.isEmpty()) && regNo != null && !regNo.isEmpty()) {
+                String safeId = regNo.replaceAll("[^a-zA-Z0-9_-]", "_");
+                java.io.File defaultFile = new java.io.File(getFilesDir(), "profile_photos/student_" + safeId + ".jpg");
+                if (defaultFile.exists() && defaultFile.length() > 0) {
+                    photoUri = defaultFile.getAbsolutePath();
+                }
+            }
+            com.example.utils.ProfilePhotoManager.displayProfilePhoto(this, photoUri, imgStudentAvatar, R.drawable.ic_profile);
         }
     }
 
@@ -303,56 +374,44 @@ public class StudentDashboardActivity extends AppCompatActivity {
     }
 
     private void setupSGPALineChart() {
-        if (sgpaLineChart == null) return;
-        sgpaLineChart.clear();
-        sgpaLineChart.getDescription().setEnabled(false);
-        sgpaLineChart.setDrawGridBackground(false);
-        sgpaLineChart.setTouchEnabled(true);
-
         int studentId = currentStudent != null ? currentStudent.getId() : 1;
-        List<com.example.model.Result> results = dbHelper.getPublishedResultsForStudent(studentId);
+        currentTrends = com.example.utils.AcademicChartHelper.loadMultiSemesterTrends(dbHelper, studentId, currentStudent);
+        updateTrendBadges();
+        renderTrendChart();
+    }
 
-        if (results == null || results.isEmpty()) {
-            sgpaLineChart.setNoDataText("No published semester results available.");
-            sgpaLineChart.invalidate();
+    private void updateTrendBadges() {
+        if (currentTrends == null || currentTrends.isEmpty()) return;
+        double latestCgpa = currentTrends.get(currentTrends.size() - 1).getCgpa();
+        double peakSgpa = 0;
+        for (com.example.model.SemesterPerformanceTrend t : currentTrends) {
+            if (t.getSgpa() > peakSgpa) peakSgpa = t.getSgpa();
+        }
+        double delta = 0;
+        if (currentTrends.size() >= 2) {
+            delta = currentTrends.get(currentTrends.size() - 1).getSgpa() - currentTrends.get(currentTrends.size() - 2).getSgpa();
+        }
+
+        if (tvTrendCgpaVal != null) {
+            tvTrendCgpaVal.setText(String.format(java.util.Locale.US, "%.2f", latestCgpa));
+        }
+        if (tvTrendPeakVal != null) {
+            tvTrendPeakVal.setText(String.format(java.util.Locale.US, "%.2f", peakSgpa));
+        }
+        if (tvTrendDeltaVal != null) {
+            String sign = delta >= 0 ? "+" : "";
+            tvTrendDeltaVal.setText(String.format(java.util.Locale.US, "%s%.2f", sign, delta));
+            tvTrendDeltaVal.setTextColor(delta >= 0 ? Color.parseColor("#10B981") : Color.parseColor("#EF4444"));
+        }
+    }
+
+    private void renderTrendChart() {
+        if (sgpaLineChart == null) return;
+        if (currentTrends == null) {
+            setupSGPALineChart();
             return;
         }
-
-        List<Entry> entries = new ArrayList<>();
-        List<String> semLabels = new ArrayList<>();
-
-        for (int i = 0; i < results.size(); i++) {
-            com.example.model.Result res = results.get(i);
-            entries.add(new Entry(i, (float) res.getSgpa()));
-            semLabels.add("Sem " + res.getSemester());
-        }
-
-        LineDataSet dataSet = new LineDataSet(entries, "SGPA Progression");
-        dataSet.setMode(LineDataSet.Mode.CUBIC_BEZIER);
-        dataSet.setColor(Color.parseColor("#4F46E5"));
-        dataSet.setLineWidth(2.5f);
-        dataSet.setCircleColor(Color.parseColor("#4F46E5"));
-        dataSet.setCircleRadius(4.5f);
-        dataSet.setDrawCircleHole(true);
-        dataSet.setCircleHoleColor(Color.WHITE);
-        dataSet.setValueTextSize(10f);
-        dataSet.setValueTextColor(Color.parseColor("#1F2937"));
-        dataSet.setDrawFilled(true);
-        dataSet.setFillColor(Color.parseColor("#818CF8"));
-        dataSet.setFillAlpha(60);
-
-        LineData lineData = new LineData(dataSet);
-        sgpaLineChart.setData(lineData);
-
-        XAxis xAxis = sgpaLineChart.getXAxis();
-        xAxis.setPosition(XAxis.XAxisPosition.BOTTOM);
-        xAxis.setGranularity(1f);
-        xAxis.setValueFormatter(new IndexAxisValueFormatter(semLabels));
-        xAxis.setDrawGridLines(false);
-
-        sgpaLineChart.getAxisRight().setEnabled(false);
-        sgpaLineChart.animateX(800);
-        sgpaLineChart.invalidate();
+        com.example.utils.AcademicChartHelper.renderAcademicTrendLineChart(this, sgpaLineChart, currentTrends, currentMetricMode);
     }
 
     private void setupSubjectMarksBarChart() {
@@ -639,6 +698,31 @@ public class StudentDashboardActivity extends AppCompatActivity {
                 }
                 return false;
             });
+        }
+    }
+
+    private void setupGradeAlertsListener(String regNo) {
+        if (gradeAlertsListener != null) return;
+        if (regNo == null || regNo.trim().isEmpty()) return;
+
+        gradeAlertsListener = com.example.utils.GradeNotificationHelper.listenForStudentGradeAlerts(
+                this,
+                regNo,
+                (subjectName, grade, percentage) -> runOnUiThread(() -> {
+                    loadAcademicStats();
+                    setupSubjectMarksBarChart();
+                    setupSGPALineChart();
+                    setupNotificationsList();
+                })
+        );
+    }
+
+    @Override
+    protected void onDestroy() {
+        super.onDestroy();
+        if (gradeAlertsListener != null) {
+            gradeAlertsListener.remove();
+            gradeAlertsListener = null;
         }
     }
 

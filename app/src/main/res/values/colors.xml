@@ -15,6 +15,7 @@
     <color name="text_primary">#000000</color>
     <color name="text_secondary">#333333</color>
     <color name="text_hint">#666666</color>
+    <color name="text_muted">#64748B</color>
     <color name="border_color">#E2E8F0</color>
     <color name="divider_color">#F1F5F9</color>
     <color name="outline_variant">#E2E8F0</color>

@@ -28,6 +28,8 @@ public class Teacher {
     private String qualification;
     private String dateOfJoining;
     private String status = "ACTIVE"; // "ACTIVE", "INACTIVE", "SUSPENDED"
+    private String profileImageUrl;
+    private String photoUri;
 
     private java.util.List<String> assignedSubjectIds = new java.util.ArrayList<>();
     private java.util.List<String> assignedSubjectNames = new java.util.ArrayList<>();
@@ -171,6 +173,12 @@ public class Teacher {
 
     public void setDepartment(String department) {
         this.department = department;
+        if (this.programLevel == null || "UG".equals(this.programLevel)) {
+            String resolved = Department.resolveDefaultProgramLevel(departmentShortName, department);
+            if ("PG".equals(resolved)) {
+                this.programLevel = "PG";
+            }
+        }
     }
 
     public String getDepartmentId() {
@@ -187,14 +195,27 @@ public class Teacher {
 
     public void setDepartmentShortName(String departmentShortName) {
         this.departmentShortName = departmentShortName;
+        if (this.programLevel == null || "UG".equals(this.programLevel)) {
+            String resolved = Department.resolveDefaultProgramLevel(departmentShortName, department);
+            if ("PG".equals(resolved)) {
+                this.programLevel = "PG";
+            }
+        }
     }
 
     public String getProgramLevel() {
-        return programLevel != null ? programLevel : "UG";
+        if (programLevel != null && !programLevel.trim().isEmpty()) {
+            return programLevel;
+        }
+        return Department.resolveDefaultProgramLevel(departmentShortName, department);
     }
 
     public void setProgramLevel(String programLevel) {
-        this.programLevel = Department.validateProgramLevel(programLevel);
+        if (programLevel == null || programLevel.trim().isEmpty()) {
+            this.programLevel = Department.resolveDefaultProgramLevel(departmentShortName, department);
+        } else {
+            this.programLevel = Department.validateProgramLevel(programLevel);
+        }
     }
 
     public String getPhone() {
@@ -281,5 +302,27 @@ public class Teacher {
 
     public void setCreatedAt(Timestamp createdAt) {
         this.createdAt = createdAt;
+    }
+
+    public String getProfileImageUrl() {
+        return profileImageUrl != null ? profileImageUrl : photoUri;
+    }
+
+    public void setProfileImageUrl(String profileImageUrl) {
+        this.profileImageUrl = profileImageUrl;
+        if (this.photoUri == null) {
+            this.photoUri = profileImageUrl;
+        }
+    }
+
+    public String getPhotoUri() {
+        return photoUri != null ? photoUri : profileImageUrl;
+    }
+
+    public void setPhotoUri(String photoUri) {
+        this.photoUri = photoUri;
+        if (this.profileImageUrl == null) {
+            this.profileImageUrl = photoUri;
+        }
     }
 }

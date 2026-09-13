@@ -1,7 +1,10 @@
 package com.example;
 
+import android.Manifest;
 import android.content.Intent;
+import android.content.pm.PackageManager;
 import android.database.Cursor;
+import android.net.Uri;
 import android.os.Bundle;
 import android.view.LayoutInflater;
 import android.view.View;
@@ -9,19 +12,27 @@ import android.widget.ImageView;
 import android.widget.TextView;
 import android.widget.Toast;
 
+import androidx.activity.result.ActivityResultLauncher;
+import androidx.activity.result.contract.ActivityResultContracts;
 import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.core.content.ContextCompat;
 
 import com.example.database.DatabaseHelper;
 import com.example.utils.PasswordUtils;
+import com.example.utils.ProfilePhotoManager;
 import com.example.utils.SessionManager;
 import com.google.android.material.button.MaterialButton;
 import com.google.android.material.chip.Chip;
+import com.google.android.material.dialog.MaterialAlertDialogBuilder;
 import com.google.android.material.textfield.TextInputEditText;
 import com.google.android.material.textfield.TextInputLayout;
 
+import java.io.File;
+
 /**
- * Activity managing Teacher Profile details, Edit Profile, Change Password, and Logout.
+ * Activity managing Teacher Profile details, camera profile photo capture/update,
+ * Edit Profile, Change Password, and Logout.
  */
 public class TeacherProfileActivity extends AppCompatActivity {
 
@@ -29,13 +40,17 @@ public class TeacherProfileActivity extends AppCompatActivity {
     private DatabaseHelper dbHelper;
 
     private ImageView btnBack;
-    private ImageView imgTeacherProfileAvatar;
+    private ImageView imgTeacherProfileAvatar, btnChangeTeacherAvatar;
     private TextView tvProfileTeacherName, tvProfileDesignation, tvProfileDepartment, tvProfileEmail, tvProfilePhone;
     private Chip chipProfileId;
 
     private MaterialButton btnEditProfile, btnChangePassword, btnLogoutTeacher;
 
     private String teacherEmail = "";
+    private Uri currentCaptureUri;
+
+    private ActivityResultLauncher<Uri> takePhotoLauncher;
+    private ActivityResultLauncher<String> requestCameraPermissionLauncher;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -45,14 +60,38 @@ public class TeacherProfileActivity extends AppCompatActivity {
         sessionManager = new SessionManager(this);
         dbHelper = new DatabaseHelper(this);
 
+        setupCameraLaunchers();
         initViews();
         loadProfileData();
         setupListeners();
     }
 
+    private void setupCameraLaunchers() {
+        takePhotoLauncher = registerForActivityResult(
+                new ActivityResultContracts.TakePicture(),
+                success -> {
+                    if (Boolean.TRUE.equals(success) && currentCaptureUri != null) {
+                        handlePhotoCaptured();
+                    }
+                }
+        );
+
+        requestCameraPermissionLauncher = registerForActivityResult(
+                new ActivityResultContracts.RequestPermission(),
+                isGranted -> {
+                    if (Boolean.TRUE.equals(isGranted)) {
+                        launchCamera();
+                    } else {
+                        Toast.makeText(this, "Camera permission is required to capture a profile photo", Toast.LENGTH_SHORT).show();
+                    }
+                }
+        );
+    }
+
     private void initViews() {
         btnBack = findViewById(R.id.btnBackTeacherProfile);
         imgTeacherProfileAvatar = findViewById(R.id.imgTeacherProfileAvatar);
+        btnChangeTeacherAvatar = findViewById(R.id.btnChangeTeacherAvatar);
 
         tvProfileTeacherName = findViewById(R.id.tvProfileTeacherName);
         tvProfileDesignation = findViewById(R.id.tvProfileDesignation);
@@ -107,13 +146,153 @@ public class TeacherProfileActivity extends AppCompatActivity {
             tvProfileDesignation.setText("Professor - Computer Science");
             tvProfilePhone.setText("+91 98765 43210");
         }
+
+        displayAvatar(null);
     }
 
     private void setupListeners() {
         btnBack.setOnClickListener(v -> finish());
+        if (btnChangeTeacherAvatar != null) {
+            btnChangeTeacherAvatar.setOnClickListener(v -> showPhotoOptionsDialog());
+        }
+        if (imgTeacherProfileAvatar != null) {
+            imgTeacherProfileAvatar.setOnClickListener(v -> showPhotoOptionsDialog());
+        }
         btnEditProfile.setOnClickListener(v -> showEditProfileDialog());
         btnChangePassword.setOnClickListener(v -> showChangePasswordDialog());
         btnLogoutTeacher.setOnClickListener(v -> confirmLogout());
+    }
+
+    private void showPhotoOptionsDialog() {
+        String existingPhoto = getActiveTeacherPhotoPath();
+        boolean hasExisting = existingPhoto != null && !existingPhoto.isEmpty();
+
+        String[] options;
+        if (hasExisting) {
+            options = new String[]{"Take Photo with Camera", "Remove Photo"};
+        } else {
+            options = new String[]{"Take Photo with Camera"};
+        }
+
+        new MaterialAlertDialogBuilder(this)
+                .setTitle("Update Profile Photo")
+                .setItems(options, (dialog, which) -> {
+                    if (which == 0) {
+                        checkCameraPermissionAndLaunch();
+                    } else if (which == 1) {
+                        removeProfilePhoto();
+                    }
+                })
+                .setNegativeButton("Cancel", null)
+                .show();
+    }
+
+    private void checkCameraPermissionAndLaunch() {
+        if (ContextCompat.checkSelfPermission(this, Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED) {
+            launchCamera();
+        } else {
+            requestCameraPermissionLauncher.launch(Manifest.permission.CAMERA);
+        }
+    }
+
+    private void launchCamera() {
+        try {
+            currentCaptureUri = ProfilePhotoManager.createTempCaptureUri(this);
+            if (currentCaptureUri != null) {
+                takePhotoLauncher.launch(currentCaptureUri);
+            } else {
+                Toast.makeText(this, "Failed to initialize camera capture", Toast.LENGTH_SHORT).show();
+            }
+        } catch (Exception e) {
+            Toast.makeText(this, "Error opening camera: " + e.getMessage(), Toast.LENGTH_SHORT).show();
+        }
+    }
+
+    private void handlePhotoCaptured() {
+        String identifier = teacherEmail != null && !teacherEmail.isEmpty()
+                ? teacherEmail
+                : sessionManager.getIdentifier();
+        if (identifier == null || identifier.trim().isEmpty()) {
+            identifier = "teacher_" + sessionManager.getUserId();
+        }
+
+        String savedPath = ProfilePhotoManager.processAndSaveAvatar(this, currentCaptureUri, "teacher", identifier);
+        if (savedPath != null) {
+            // Update SQLite
+            dbHelper.updateTeacherPhotoUri(teacherEmail, savedPath);
+
+            // Update Session
+            sessionManager.setProfilePhotoUri(savedPath);
+
+            // Sync to Firestore
+            syncTeacherPhotoToFirestore(savedPath);
+
+            // Display in UI
+            displayAvatar(savedPath);
+            Toast.makeText(this, "Profile photo updated successfully!", Toast.LENGTH_SHORT).show();
+        } else {
+            Toast.makeText(this, "Failed to process photo from camera", Toast.LENGTH_SHORT).show();
+        }
+    }
+
+    private void removeProfilePhoto() {
+        String identifier = teacherEmail != null && !teacherEmail.isEmpty()
+                ? teacherEmail
+                : sessionManager.getIdentifier();
+        if (identifier == null || identifier.trim().isEmpty()) {
+            identifier = "teacher_" + sessionManager.getUserId();
+        }
+
+        ProfilePhotoManager.deleteProfilePhoto(this, "teacher", identifier);
+        dbHelper.updateTeacherPhotoUri(teacherEmail, "");
+        sessionManager.setProfilePhotoUri(null);
+        syncTeacherPhotoToFirestore("");
+        displayAvatar(null);
+        Toast.makeText(this, "Profile photo removed", Toast.LENGTH_SHORT).show();
+    }
+
+    private String getActiveTeacherPhotoPath() {
+        String sessionPath = sessionManager.getProfilePhotoUri();
+        if (sessionPath != null && !sessionPath.trim().isEmpty()) {
+            File f = new File(sessionPath);
+            if (f.exists() && f.length() > 0) return sessionPath;
+        }
+
+        if (teacherEmail != null && !teacherEmail.trim().isEmpty()) {
+            String dbPath = dbHelper.getTeacherPhotoUri(teacherEmail);
+            if (dbPath != null && !dbPath.trim().isEmpty()) {
+                File f = new File(dbPath);
+                if (f.exists() && f.length() > 0) return dbPath;
+            }
+
+            String safeId = teacherEmail.replaceAll("[^a-zA-Z0-9_-]", "_");
+            File defaultFile = new File(getFilesDir(), "profile_photos/teacher_" + safeId + ".jpg");
+            if (defaultFile.exists() && defaultFile.length() > 0) {
+                return defaultFile.getAbsolutePath();
+            }
+        }
+        return null;
+    }
+
+    private void displayAvatar(String photoPath) {
+        if (imgTeacherProfileAvatar == null) return;
+        if (photoPath == null || photoPath.trim().isEmpty()) {
+            photoPath = getActiveTeacherPhotoPath();
+        }
+        ProfilePhotoManager.displayProfilePhoto(this, photoPath, imgTeacherProfileAvatar, R.drawable.ic_profile);
+    }
+
+    private void syncTeacherPhotoToFirestore(String photoPath) {
+        try {
+            com.google.firebase.auth.FirebaseUser user = com.google.firebase.auth.FirebaseAuth.getInstance().getCurrentUser();
+            if (user != null) {
+                com.google.firebase.firestore.FirebaseFirestore.getInstance()
+                        .collection("users")
+                        .document(user.getUid())
+                        .update("photoUri", photoPath != null ? photoPath : "",
+                                "profileImageUrl", photoPath != null ? photoPath : "");
+            }
+        } catch (Exception ignored) {}
     }
 
     private void showEditProfileDialog() {

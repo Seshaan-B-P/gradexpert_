@@ -100,7 +100,7 @@ public class TeacherAdapter extends RecyclerView.Adapter<TeacherAdapter.TeacherV
 
             String level = teacher.getProgramLevel();
             if (TextUtils.isEmpty(level)) {
-                level = "UG";
+                level = com.example.model.Department.resolveDefaultProgramLevel(teacher.getDepartmentShortName(), teacher.getDepartment());
             }
 
             String dept = teacher.getDepartmentShortName();

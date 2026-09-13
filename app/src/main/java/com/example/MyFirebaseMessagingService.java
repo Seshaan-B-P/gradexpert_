@@ -45,6 +45,66 @@ public class MyFirebaseMessagingService extends FirebaseMessagingService {
         super.onMessageReceived(remoteMessage);
         Log.d(TAG, "From: " + remoteMessage.getFrom());
 
+        Map<String, String> data = remoteMessage.getData();
+        String type = data.get("type");
+        String destination = data.get("destination");
+
+        // Check if this FCM message is a grade alert
+        if ("GRADE_UPLOADED".equalsIgnoreCase(type) || "GRADE_ALERT".equalsIgnoreCase(type)
+                || "RESULTS".equalsIgnoreCase(destination) || data.containsKey("grade")) {
+            String studentName = data.get("studentName");
+            String registerNo = data.get("registerNo");
+            String subjectName = data.get("subjectName");
+            String subjectCode = data.get("subjectCode");
+            String grade = data.get("grade");
+            String instructorName = data.get("instructorName");
+
+            double totalMarks = 0.0;
+            try {
+                if (data.containsKey("totalMarks")) {
+                    totalMarks = Double.parseDouble(data.get("totalMarks"));
+                }
+            } catch (Exception ignored) {}
+
+            double percentage = 0.0;
+            try {
+                if (data.containsKey("percentage")) {
+                    percentage = Double.parseDouble(data.get("percentage"));
+                }
+            } catch (Exception ignored) {}
+
+            double gradePoint = 0.0;
+            try {
+                if (data.containsKey("gradePoint")) {
+                    gradePoint = Double.parseDouble(data.get("gradePoint"));
+                }
+            } catch (Exception ignored) {}
+
+            int semester = 1;
+            try {
+                if (data.containsKey("semester")) {
+                    semester = Integer.parseInt(data.get("semester"));
+                }
+            } catch (Exception ignored) {}
+
+            if (subjectName != null && !subjectName.isEmpty()) {
+                com.example.utils.GradeNotificationHelper.sendGradeAlertNotification(
+                        this,
+                        studentName != null ? studentName : "Student",
+                        registerNo != null ? registerNo : "",
+                        subjectName,
+                        subjectCode != null ? subjectCode : "",
+                        grade != null ? grade : "A",
+                        totalMarks,
+                        percentage,
+                        gradePoint,
+                        instructorName != null ? instructorName : "Instructor",
+                        semester
+                );
+                return;
+            }
+        }
+
         String title = "GradeXpert Alert";
         String body = "You have a new academic notification.";
 
@@ -57,11 +117,9 @@ public class MyFirebaseMessagingService extends FirebaseMessagingService {
             }
         }
 
-        Map<String, String> data = remoteMessage.getData();
         if (data.containsKey("title")) title = data.get("title");
         if (data.containsKey("message")) body = data.get("message");
 
-        String destination = data.get("destination");
         String alertId = data.get("alertId");
 
         showNotification(title, body, destination, alertId);
@@ -123,17 +181,61 @@ public class MyFirebaseMessagingService extends FirebaseMessagingService {
     }
 
     /**
+     * Checks if Google Play Services is available and enabled on the device.
+     */
+    public static boolean isGooglePlayServicesAvailable(Context context) {
+        if (context == null) return false;
+        try {
+            android.content.pm.PackageManager pm = context.getPackageManager();
+            android.content.pm.PackageInfo pi = pm.getPackageInfo("com.google.android.gms", 0);
+            if (pi == null || pi.applicationInfo == null || !pi.applicationInfo.enabled) {
+                return false;
+            }
+        } catch (Exception e) {
+            // Google Play Services APK is not installed on this device/emulator
+            return false;
+        }
+
+        try {
+            Class<?> gmsClass = Class.forName("com.google.android.gms.common.GoogleApiAvailabilityLight");
+            Object instance = gmsClass.getMethod("getInstance").invoke(null);
+            Object resultCode = gmsClass.getMethod("isGooglePlayServicesAvailable", Context.class)
+                    .invoke(instance, context.getApplicationContext());
+            if (resultCode instanceof Integer) {
+                return ((Integer) resultCode) == 0;
+            }
+        } catch (Throwable ignored) {}
+
+        return true;
+    }
+
+    /**
      * Registers current device FCM token in Firestore under studentDevices/{uid}/tokens/{tokenId}.
      */
     public static void registerFcmToken(Context context) {
-        FirebaseMessaging.getInstance().getToken().addOnCompleteListener(task -> {
-            if (!task.isSuccessful() || task.getResult() == null) {
-                Log.w(TAG, "Fetching FCM registration token failed", task.getException());
-                return;
-            }
-            String token = task.getResult();
-            saveTokenToFirestore(context, token);
-        });
+        if (context != null && !isGooglePlayServicesAvailable(context)) {
+            Log.i(TAG, "Google Play Services is not available on this environment; skipping FCM token retrieval.");
+            return;
+        }
+
+        try {
+            FirebaseMessaging messaging = FirebaseMessaging.getInstance();
+            messaging.setAutoInitEnabled(true);
+            messaging.getToken().addOnCompleteListener(task -> {
+                if (!task.isSuccessful() || task.getResult() == null) {
+                    Log.i(TAG, "FCM registration token retrieval skipped or failed on this environment.");
+                    return;
+                }
+                String token = task.getResult();
+                saveTokenToFirestore(context, token);
+
+                try {
+                    messaging.subscribeToTopic(com.example.utils.GradeNotificationHelper.TOPIC_ALL_GRADES);
+                } catch (Exception ignored) {}
+            });
+        } catch (Exception e) {
+            Log.i(TAG, "Firebase Cloud Messaging token registration skipped: " + e.getMessage());
+        }
     }
 
     private static void saveTokenToFirestore(Context context, String token) {

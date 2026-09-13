@@ -53,6 +53,7 @@ public class TeacherDashboardActivity extends AppCompatActivity {
     private BottomNavigationView teacherBottomNavigation;
     private ImageView btnTeacherNotificationsHeader;
     private View cardProfileAvatar;
+    private ImageView imgTeacherAvatar;
     private TextView tvViewAllActivities;
 
     // Tool Buttons
@@ -111,6 +112,7 @@ public class TeacherDashboardActivity extends AppCompatActivity {
         teacherBottomNavigation = findViewById(R.id.teacherBottomNavigation);
         btnTeacherNotificationsHeader = findViewById(R.id.btnTeacherNotificationsHeader);
         cardProfileAvatar = findViewById(R.id.cardProfileAvatar);
+        imgTeacherAvatar = findViewById(R.id.imgTeacherAvatar);
         tvViewAllActivities = findViewById(R.id.tvViewAllActivities);
 
         // Tools
@@ -146,6 +148,22 @@ public class TeacherDashboardActivity extends AppCompatActivity {
             tvTeacherDept.setText("Faculty ID: " + identifier);
         } else {
             tvTeacherDept.setText("Faculty Portal • GradeXpert");
+        }
+
+        if (imgTeacherAvatar != null) {
+            String photoUri = sessionManager.getProfilePhotoUri();
+            if (photoUri == null || photoUri.isEmpty()) {
+                photoUri = dbHelper.getTeacherPhotoUri(sessionManager.getUserEmail());
+            }
+            if (photoUri == null || photoUri.isEmpty()) {
+                String safeId = (sessionManager.getUserEmail() != null ? sessionManager.getUserEmail() : sessionManager.getIdentifier())
+                        .replaceAll("[^a-zA-Z0-9_-]", "_");
+                java.io.File defaultFile = new java.io.File(getFilesDir(), "profile_photos/teacher_" + safeId + ".jpg");
+                if (defaultFile.exists() && defaultFile.length() > 0) {
+                    photoUri = defaultFile.getAbsolutePath();
+                }
+            }
+            com.example.utils.ProfilePhotoManager.displayProfilePhoto(this, photoUri, imgTeacherAvatar, R.drawable.ic_profile);
         }
     }
 

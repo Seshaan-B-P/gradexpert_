@@ -109,24 +109,46 @@
                     android:orientation="vertical"
                     android:padding="20dp">
 
-                    <com.google.android.material.card.MaterialCardView
-                        android:layout_width="88dp"
-                        android:layout_height="88dp"
-                        app:cardBackgroundColor="@color/primary_light"
-                        app:cardCornerRadius="44dp"
-                        app:cardElevation="4dp"
-                        app:strokeColor="@color/primary"
-                        app:strokeWidth="2dp">
+                    <RelativeLayout
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content">
+
+                        <com.google.android.material.card.MaterialCardView
+                            android:id="@+id/cardTeacherProfileAvatar"
+                            android:layout_width="88dp"
+                            android:layout_height="88dp"
+                            app:cardBackgroundColor="@color/primary_light"
+                            app:cardCornerRadius="44dp"
+                            app:cardElevation="4dp"
+                            app:strokeColor="@color/primary"
+                            app:strokeWidth="2dp">
+
+                            <ImageView
+                                android:id="@+id/imgTeacherProfileAvatar"
+                                android:layout_width="match_parent"
+                                android:layout_height="match_parent"
+                                android:scaleType="centerCrop"
+                                android:src="@drawable/ic_profile"
+                                app:tint="@color/primary" />
+
+                        </com.google.android.material.card.MaterialCardView>
 
                         <ImageView
-                            android:id="@+id/imgTeacherProfileAvatar"
-                            android:layout_width="match_parent"
-                            android:layout_height="match_parent"
-                            android:scaleType="centerCrop"
-                            android:src="@drawable/ic_profile"
-                            app:tint="@color/primary" />
+                            android:id="@+id/btnChangeTeacherAvatar"
+                            android:layout_width="32dp"
+                            android:layout_height="32dp"
+                            android:layout_alignEnd="@id/cardTeacherProfileAvatar"
+                            android:layout_alignBottom="@id/cardTeacherProfileAvatar"
+                            android:background="@drawable/bg_pill_rose"
+                            android:backgroundTint="@color/primary"
+                            android:clickable="true"
+                            android:contentDescription="Take or update profile photo with camera"
+                            android:focusable="true"
+                            android:padding="6dp"
+                            android:src="@drawable/ic_camera"
+                            app:tint="@color/white" />
 
-                    </com.google.android.material.card.MaterialCardView>
+                    </RelativeLayout>
 
                     <TextView
                         android:id="@+id/tvProfileTeacherName"

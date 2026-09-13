@@ -127,23 +127,27 @@
                             android:layout_width="90dp"
                             android:layout_height="90dp"
                             android:background="@color/primary_light"
-                            android:padding="12dp"
+                            android:padding="0dp"
+                            android:scaleType="centerCrop"
                             android:src="@drawable/ic_profile"
                             app:shapeAppearanceOverlay="@style/ShapeAppearance.Material3.Corner.Full"
+                            app:strokeColor="@color/primary"
+                            app:strokeWidth="2dp"
                             app:tint="@color/primary" />
 
                         <ImageView
                             android:id="@+id/btnChangeStudentAvatar"
-                            android:layout_width="28dp"
-                            android:layout_height="28dp"
+                            android:layout_width="32dp"
+                            android:layout_height="32dp"
                             android:layout_alignEnd="@id/imgStudentProfileAvatar"
                             android:layout_alignBottom="@id/imgStudentProfileAvatar"
                             android:background="@drawable/bg_pill_rose"
                             android:backgroundTint="@color/primary"
                             android:clickable="true"
+                            android:contentDescription="Take or update profile photo with camera"
                             android:focusable="true"
                             android:padding="6dp"
-                            android:src="@drawable/ic_edit"
+                            android:src="@drawable/ic_camera"
                             app:tint="@color/white" />
 
                     </RelativeLayout>

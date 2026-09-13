@@ -759,6 +759,27 @@ public class AddMarksActivity extends AppCompatActivity {
             isExistingRecord = true;
             btnSaveMarks.setText("Update Subject Marks");
             btnDeleteMarks.setVisibility(View.VISIBLE);
+
+            // Alert student about newly uploaded grades
+            try {
+                int semNum = Subject.parseSemesterNumber(selectedSubject.getSemester());
+                com.example.utils.GradeNotificationHelper.dispatchGradeUploadAlert(
+                        this,
+                        selectedStudent.getName(),
+                        selectedStudent.getRegNo(),
+                        selectedStudent.getId(),
+                        selectedSubject.getSubjectName(),
+                        selectedSubject.getSubjectCode(),
+                        grade,
+                        total,
+                        percentage,
+                        gradePoint,
+                        sessionManager.getUserName() != null ? sessionManager.getUserName() : "Instructor",
+                        semNum
+                );
+            } catch (Exception e) {
+                android.util.Log.w("AddMarksActivity", "Failed dispatching grade alert: " + e.getMessage());
+            }
         } else {
             Toast.makeText(this, "Marks saved to cloud.", Toast.LENGTH_SHORT).show();
         }

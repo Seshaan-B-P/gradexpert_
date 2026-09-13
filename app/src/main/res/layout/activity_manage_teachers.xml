@@ -110,6 +110,7 @@
                         android:layout_height="wrap_content"
                         android:paddingStart="16dp"
                         android:paddingEnd="16dp"
+                        app:selectionRequired="true"
                         app:singleSelection="true">
 
                         <com.google.android.material.chip.Chip
@@ -151,6 +152,7 @@
                         android:layout_height="wrap_content"
                         android:paddingStart="16dp"
                         android:paddingEnd="16dp"
+                        app:selectionRequired="true"
                         app:singleSelection="true">
 
                         <com.google.android.material.chip.Chip
@@ -199,6 +201,7 @@
                         android:layout_height="wrap_content"
                         android:paddingStart="16dp"
                         android:paddingEnd="16dp"
+                        app:selectionRequired="true"
                         app:singleSelection="true">
 
                         <com.google.android.material.chip.Chip
@@ -237,6 +240,34 @@
                             android:layout_height="wrap_content"
                             android:text="ECE" />
 
+                        <com.google.android.material.chip.Chip
+                            android:id="@+id/chipTeacherDeptEEE"
+                            style="@style/Widget.MaterialComponents.Chip.Choice"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="EEE" />
+
+                        <com.google.android.material.chip.Chip
+                            android:id="@+id/chipTeacherDeptMECH"
+                            style="@style/Widget.MaterialComponents.Chip.Choice"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="MECH" />
+
+                        <com.google.android.material.chip.Chip
+                            android:id="@+id/chipTeacherDeptCIVIL"
+                            style="@style/Widget.MaterialComponents.Chip.Choice"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="CIVIL" />
+
+                        <com.google.android.material.chip.Chip
+                            android:id="@+id/chipTeacherDeptMBA"
+                            style="@style/Widget.MaterialComponents.Chip.Choice"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="MBA" />
+
                     </com.google.android.material.chip.ChipGroup>
 
                 </HorizontalScrollView>
@@ -250,17 +281,42 @@
                     android:layout_marginTop="32dp"
                     android:visibility="gone" />
 
-                <!-- Total Count Label -->
-                <TextView
-                    android:id="@+id/tvTotalTeachersLabel"
-                    android:layout_width="wrap_content"
+                <!-- Total Count Label & Clear Filters Row -->
+                <RelativeLayout
+                    android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:layout_marginStart="16dp"
                     android:layout_marginTop="12dp"
-                    android:text="All Registered Faculty Members"
-                    android:textColor="@color/text_secondary"
-                    android:textSize="12sp"
-                    android:textStyle="bold" />
+                    android:layout_marginEnd="16dp">
+
+                    <TextView
+                        android:id="@+id/tvTotalTeachersLabel"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_alignParentStart="true"
+                        android:layout_centerVertical="true"
+                        android:text="All Registered Faculty Members"
+                        android:textColor="@color/text_secondary"
+                        android:textSize="12sp"
+                        android:textStyle="bold" />
+
+                    <TextView
+                        android:id="@+id/btnClearFilters"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_alignParentEnd="true"
+                        android:layout_centerVertical="true"
+                        android:background="?attr/selectableItemBackground"
+                        android:clickable="true"
+                        android:focusable="true"
+                        android:padding="4dp"
+                        android:text="Clear Filters ✕"
+                        android:textColor="@color/primary"
+                        android:textSize="12sp"
+                        android:textStyle="bold"
+                        android:visibility="gone" />
+
+                </RelativeLayout>
 
                 <!-- Teachers List RecyclerView -->
                 <androidx.recyclerview.widget.RecyclerView
@@ -271,17 +327,56 @@
                     android:nestedScrollingEnabled="false"
                     tools:listitem="@layout/item_teacher" />
 
-                <!-- Empty State -->
-                <TextView
-                    android:id="@+id/tvEmptyTeachers"
-                    android:layout_width="wrap_content"
+                <!-- Empty State Layout -->
+                <LinearLayout
+                    android:id="@+id/layoutEmptyTeachers"
+                    android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:layout_gravity="center_horizontal"
+                    android:layout_marginStart="24dp"
                     android:layout_marginTop="40dp"
-                    android:text="No faculty members found matching your search."
-                    android:textColor="@color/text_secondary"
-                    android:textSize="14sp"
-                    android:visibility="gone" />
+                    android:layout_marginEnd="24dp"
+                    android:gravity="center"
+                    android:orientation="vertical"
+                    android:visibility="gone">
+
+                    <ImageView
+                        android:layout_width="48dp"
+                        android:layout_height="48dp"
+                        android:src="@drawable/ic_search"
+                        app:tint="@color/text_muted" />
+
+                    <TextView
+                        android:id="@+id/tvEmptyTeachers"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="12dp"
+                        android:text="No faculty members found"
+                        android:textColor="@color/text_primary"
+                        android:textSize="15sp"
+                        android:textStyle="bold" />
+
+                    <TextView
+                        android:id="@+id/tvEmptyTeachersSub"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="4dp"
+                        android:gravity="center"
+                        android:text="Try adjusting your search query or filter options."
+                        android:textColor="@color/text_secondary"
+                        android:textSize="12sp" />
+
+                    <com.google.android.material.button.MaterialButton
+                        android:id="@+id/btnEmptyResetFilters"
+                        style="@style/Widget.MaterialComponents.Button.OutlinedButton"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="14dp"
+                        android:text="Reset All Filters"
+                        android:textColor="@color/primary"
+                        app:strokeColor="@color/primary" />
+
+                </LinearLayout>
 
             </LinearLayout>
 

@@ -19,6 +19,8 @@ public class SessionManager {
     private static final String KEY_FIREBASE_UID = "firebaseUid";
     private static final String KEY_LOGIN_ID = "loginId";
     private static final String KEY_DARK_MODE = "isDarkMode";
+    private static final String KEY_ATTENDANCE_THRESHOLD = "attendanceThreshold";
+    private static final String KEY_PROFILE_PHOTO = "profilePhotoUri";
 
     // Remember Me Keys
     private static final String KEY_REMEMBER_ME = "rememberMe";
@@ -118,6 +120,19 @@ public class SessionManager {
         editor.apply();
     }
 
+    public void setProfilePhotoUri(String photoUri) {
+        if (photoUri != null) {
+            editor.putString(KEY_PROFILE_PHOTO, photoUri);
+        } else {
+            editor.remove(KEY_PROFILE_PHOTO);
+        }
+        editor.apply();
+    }
+
+    public String getProfilePhotoUri() {
+        return pref.getString(KEY_PROFILE_PHOTO, null);
+    }
+
     public void setFirebaseUid(String uid) {
         editor.putString(KEY_FIREBASE_UID, uid);
         editor.apply();
@@ -134,6 +149,15 @@ public class SessionManager {
 
     public String getLoginId() {
         return pref.getString(KEY_LOGIN_ID, "");
+    }
+
+    public float getAttendanceThreshold() {
+        return pref.getFloat(KEY_ATTENDANCE_THRESHOLD, 75.0f);
+    }
+
+    public void setAttendanceThreshold(float threshold) {
+        editor.putFloat(KEY_ATTENDANCE_THRESHOLD, threshold);
+        editor.apply();
     }
 
     public void logout() {

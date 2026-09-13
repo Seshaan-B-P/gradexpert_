@@ -183,4 +183,18 @@ public class ReportExporter {
             Toast.makeText(context, "File created at: " + file.getAbsolutePath(), Toast.LENGTH_LONG).show();
         }
     }
+
+    /**
+     * Exports an individual student grade report as an official PDF document for offline record-keeping.
+     */
+    public static File exportStudentGradeReportPdf(Context context, com.example.model.Student student, int semester, com.example.model.Result result, List<com.example.model.SubjectGradeItem> subjects) {
+        return PdfReportGenerator.generateStudentGradeReportPdf(context, student, semester, result, subjects);
+    }
+
+    /**
+     * Exports an individual student grade report as an official PDF document with custom statistics.
+     */
+    public static File exportStudentGradeReportPdf(Context context, String studentName, String registerNo, String department, String semesterText, double sgpa, double cgpa, double marksPct, double totalMarks, List<com.example.model.SubjectGradeItem> subjects) {
+        return PdfReportGenerator.generateStudentGradeReportPdf(context, studentName, registerNo, department, semesterText, sgpa, cgpa, marksPct, totalMarks, subjects);
+    }
 }

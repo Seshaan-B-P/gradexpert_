@@ -50,7 +50,9 @@ public class ManageTeachersActivity extends AppCompatActivity implements Teacher
     private MaterialButton btnAddTeacher;
     private ChipGroup chipGroupProgramLevel, chipGroupStatus, chipGroupDept;
     private ProgressBar progressBar;
-    private TextView tvTotalLabel, tvEmpty;
+    private TextView tvTotalLabel, tvEmpty, tvEmptySub, btnClearFilters;
+    private View layoutEmptyTeachers;
+    private MaterialButton btnEmptyResetFilters;
     private RecyclerView rvTeachers;
 
     private TeacherAdapter adapter;
@@ -116,6 +118,10 @@ public class ManageTeachersActivity extends AppCompatActivity implements Teacher
         progressBar = findViewById(R.id.progressBarTeachers);
         tvTotalLabel = findViewById(R.id.tvTotalTeachersLabel);
         tvEmpty = findViewById(R.id.tvEmptyTeachers);
+        tvEmptySub = findViewById(R.id.tvEmptyTeachersSub);
+        btnClearFilters = findViewById(R.id.btnClearFilters);
+        layoutEmptyTeachers = findViewById(R.id.layoutEmptyTeachers);
+        btnEmptyResetFilters = findViewById(R.id.btnEmptyResetFilters);
         rvTeachers = findViewById(R.id.rvTeachers);
 
         btnAddTeacher.setOnClickListener(v -> {
@@ -123,7 +129,34 @@ public class ManageTeachersActivity extends AppCompatActivity implements Teacher
             startActivity(intent);
         });
 
+        if (btnClearFilters != null) {
+            btnClearFilters.setOnClickListener(v -> resetAllFilters());
+        }
+
+        if (btnEmptyResetFilters != null) {
+            btnEmptyResetFilters.setOnClickListener(v -> resetAllFilters());
+        }
+
         swipeRefresh.setOnRefreshListener(this::loadTeachers);
+    }
+
+    private void resetAllFilters() {
+        selectedProgramLevelFilter = "ALL";
+        selectedStatusFilter = "ALL";
+        selectedDeptFilter = "ALL";
+        if (etSearch != null) {
+            etSearch.setText("");
+        }
+        if (chipGroupProgramLevel != null) {
+            chipGroupProgramLevel.check(R.id.chipTeacherLevelAll);
+        }
+        if (chipGroupStatus != null) {
+            chipGroupStatus.check(R.id.chipTeacherStatusAll);
+        }
+        if (chipGroupDept != null) {
+            chipGroupDept.check(R.id.chipTeacherDeptAll);
+        }
+        applyFilters();
     }
 
     private void setupToolbar() {
@@ -157,33 +190,80 @@ public class ManageTeachersActivity extends AppCompatActivity implements Teacher
             });
         }
 
-        chipGroupStatus.setOnCheckedChangeListener((group, checkedId) -> {
-            if (checkedId == R.id.chipTeacherStatusActive) {
-                selectedStatusFilter = "ACTIVE";
-            } else if (checkedId == R.id.chipTeacherStatusInactive) {
-                selectedStatusFilter = "INACTIVE";
-            } else if (checkedId == R.id.chipTeacherStatusSuspended) {
-                selectedStatusFilter = "SUSPENDED";
-            } else {
-                selectedStatusFilter = "ALL";
-            }
-            applyFilters();
-        });
+        if (chipGroupStatus != null) {
+            chipGroupStatus.setOnCheckedChangeListener((group, checkedId) -> {
+                if (checkedId == R.id.chipTeacherStatusActive) {
+                    selectedStatusFilter = "ACTIVE";
+                } else if (checkedId == R.id.chipTeacherStatusInactive) {
+                    selectedStatusFilter = "INACTIVE";
+                } else if (checkedId == R.id.chipTeacherStatusSuspended) {
+                    selectedStatusFilter = "SUSPENDED";
+                } else {
+                    selectedStatusFilter = "ALL";
+                }
+                applyFilters();
+            });
+        }
 
-        chipGroupDept.setOnCheckedChangeListener((group, checkedId) -> {
-            if (checkedId == R.id.chipTeacherDeptMCA) {
-                selectedDeptFilter = "MCA";
-            } else if (checkedId == R.id.chipTeacherDeptCSE) {
-                selectedDeptFilter = "CSE";
-            } else if (checkedId == R.id.chipTeacherDeptIT) {
-                selectedDeptFilter = "IT";
-            } else if (checkedId == R.id.chipTeacherDeptECE) {
-                selectedDeptFilter = "ECE";
-            } else {
-                selectedDeptFilter = "ALL";
+        if (chipGroupDept != null) {
+            chipGroupDept.setOnCheckedChangeListener((group, checkedId) -> {
+                if (checkedId == R.id.chipTeacherDeptMCA) {
+                    selectedDeptFilter = "MCA";
+                } else if (checkedId == R.id.chipTeacherDeptCSE) {
+                    selectedDeptFilter = "CSE";
+                } else if (checkedId == R.id.chipTeacherDeptIT) {
+                    selectedDeptFilter = "IT";
+                } else if (checkedId == R.id.chipTeacherDeptECE) {
+                    selectedDeptFilter = "ECE";
+                } else if (checkedId == R.id.chipTeacherDeptEEE) {
+                    selectedDeptFilter = "EEE";
+                } else if (checkedId == R.id.chipTeacherDeptMECH) {
+                    selectedDeptFilter = "MECH";
+                } else if (checkedId == R.id.chipTeacherDeptCIVIL) {
+                    selectedDeptFilter = "CIVIL";
+                } else if (checkedId == R.id.chipTeacherDeptMBA) {
+                    selectedDeptFilter = "MBA";
+                } else if (checkedId != View.NO_ID && checkedId != R.id.chipTeacherDeptAll) {
+                    com.google.android.material.chip.Chip chip = group.findViewById(checkedId);
+                    if (chip != null && chip.getTag() != null) {
+                        selectedDeptFilter = chip.getTag().toString();
+                    } else if (chip != null) {
+                        selectedDeptFilter = chip.getText().toString();
+                    } else {
+                        selectedDeptFilter = "ALL";
+                    }
+                } else {
+                    selectedDeptFilter = "ALL";
+                }
+                applyFilters();
+            });
+        }
+    }
+
+    private void syncDynamicDepartmentChips() {
+        if (chipGroupDept == null) return;
+        java.util.Set<String> knownCodes = new java.util.HashSet<>(java.util.Arrays.asList(
+                "ALL", "MCA", "CSE", "IT", "ECE", "EEE", "MECH", "CIVIL", "MBA"
+        ));
+        for (Teacher t : masterTeacherList) {
+            String shortName = t.getDepartmentShortName();
+            if (TextUtils.isEmpty(shortName)) {
+                shortName = t.getDepartment();
             }
-            applyFilters();
-        });
+            if (!TextUtils.isEmpty(shortName)) {
+                String code = shortName.trim();
+                String upperCode = code.toUpperCase();
+                if (!knownCodes.contains(upperCode) && upperCode.length() <= 12) {
+                    knownCodes.add(upperCode);
+                    com.google.android.material.chip.Chip dynamicChip = new com.google.android.material.chip.Chip(this);
+                    dynamicChip.setText(code);
+                    dynamicChip.setTag(upperCode);
+                    dynamicChip.setCheckable(true);
+                    dynamicChip.setClickable(true);
+                    chipGroupDept.addView(dynamicChip);
+                }
+            }
+        }
     }
 
     private void setupSearchListener() {
@@ -201,6 +281,58 @@ public class ManageTeachersActivity extends AppCompatActivity implements Teacher
         });
     }
 
+    private Teacher parseTeacherFromDoc(DocumentSnapshot doc) {
+        Teacher t = null;
+        try {
+            t = doc.toObject(Teacher.class);
+        } catch (Exception ex) {
+            // fallback below
+        }
+        if (t == null) {
+            String name = doc.getString("name");
+            if (name == null) name = doc.getString("displayName");
+            String email = doc.getString("email");
+            String dept = doc.getString("department");
+            String phone = doc.getString("phone");
+            String empId = doc.getString("employeeId");
+            if (empId == null) empId = doc.getString("identifier");
+            String status = doc.getString("status");
+            t = new Teacher(doc.getId(), name, email, phone, empId, dept, "", "Faculty", "", "", status != null ? status : "ACTIVE");
+        }
+
+        if (t != null) {
+            t.setUid(doc.getId());
+            if (TextUtils.isEmpty(t.getName()) && doc.getString("displayName") != null) {
+                t.setName(doc.getString("displayName"));
+            }
+            if (TextUtils.isEmpty(t.getEmployeeId())) {
+                t.setEmployeeId(doc.getString("identifier"));
+            }
+            if (TextUtils.isEmpty(t.getLoginId()) && doc.getString("loginId") != null) {
+                t.setLoginId(doc.getString("loginId"));
+            }
+            if (TextUtils.isEmpty(t.getDepartmentShortName()) && doc.getString("departmentShortName") != null) {
+                t.setDepartmentShortName(doc.getString("departmentShortName"));
+            }
+            if (TextUtils.isEmpty(t.getDepartmentId()) && doc.getString("departmentId") != null) {
+                t.setDepartmentId(doc.getString("departmentId"));
+            }
+            if (TextUtils.isEmpty(t.getProgramLevel())) {
+                String pLevel = doc.getString("programLevel");
+                if (!TextUtils.isEmpty(pLevel)) {
+                    t.setProgramLevel(pLevel);
+                } else {
+                    t.setProgramLevel(com.example.model.Department.resolveDefaultProgramLevel(t.getDepartmentShortName(), t.getDepartment()));
+                }
+            }
+            List<String> subIds = (List<String>) doc.get("assignedSubjectIds");
+            if (subIds != null) t.setAssignedSubjectIds(subIds);
+            List<String> subNames = (List<String>) doc.get("assignedSubjectNames");
+            if (subNames != null) t.setAssignedSubjectNames(subNames);
+        }
+        return t;
+    }
+
     private void listenToFirestoreTeachers() {
         teachersListener = db.collection("teachers")
                 .addSnapshotListener((snapshots, error) -> {
@@ -211,32 +343,12 @@ public class ManageTeachersActivity extends AppCompatActivity implements Teacher
                     if (snapshots != null) {
                         masterTeacherList.clear();
                         for (DocumentSnapshot doc : snapshots.getDocuments()) {
-                            Teacher t = null;
-                            try {
-                                t = doc.toObject(Teacher.class);
-                            } catch (Exception ex) {
-                                String name = doc.getString("name");
-                                String email = doc.getString("email");
-                                String dept = doc.getString("department");
-                                String phone = doc.getString("phone");
-                                String empId = doc.getString("employeeId");
-                                if (empId == null) empId = doc.getString("identifier");
-                                String status = doc.getString("status");
-                                t = new Teacher(doc.getId(), name, email, phone, empId, dept, "", "Faculty", "", "", status != null ? status : "ACTIVE");
-                            }
+                            Teacher t = parseTeacherFromDoc(doc);
                             if (t != null) {
-                                t.setUid(doc.getId());
-                                if (TextUtils.isEmpty(t.getEmployeeId())) {
-                                    t.setEmployeeId(doc.getString("identifier"));
-                                }
-                                List<String> subIds = (List<String>) doc.get("assignedSubjectIds");
-                                if (subIds != null) t.setAssignedSubjectIds(subIds);
-                                List<String> subNames = (List<String>) doc.get("assignedSubjectNames");
-                                if (subNames != null) t.setAssignedSubjectNames(subNames);
-
                                 masterTeacherList.add(t);
                             }
                         }
+                        syncDynamicDepartmentChips();
                         applyFilters();
                     }
                 });
@@ -252,32 +364,12 @@ public class ManageTeachersActivity extends AppCompatActivity implements Teacher
                     if (queryDocumentSnapshots != null && !queryDocumentSnapshots.isEmpty()) {
                         masterTeacherList.clear();
                         for (DocumentSnapshot doc : queryDocumentSnapshots.getDocuments()) {
-                            Teacher t = null;
-                            try {
-                                t = doc.toObject(Teacher.class);
-                            } catch (Exception ex) {
-                                String name = doc.getString("name");
-                                String email = doc.getString("email");
-                                String dept = doc.getString("department");
-                                String phone = doc.getString("phone");
-                                String empId = doc.getString("employeeId");
-                                if (empId == null) empId = doc.getString("identifier");
-                                String status = doc.getString("status");
-                                t = new Teacher(doc.getId(), name, email, phone, empId, dept, "", "Faculty", "", "", status != null ? status : "ACTIVE");
-                            }
+                            Teacher t = parseTeacherFromDoc(doc);
                             if (t != null) {
-                                t.setUid(doc.getId());
-                                if (TextUtils.isEmpty(t.getEmployeeId())) {
-                                    t.setEmployeeId(doc.getString("identifier"));
-                                }
-                                List<String> subIds = (List<String>) doc.get("assignedSubjectIds");
-                                if (subIds != null) t.setAssignedSubjectIds(subIds);
-                                List<String> subNames = (List<String>) doc.get("assignedSubjectNames");
-                                if (subNames != null) t.setAssignedSubjectNames(subNames);
-
                                 masterTeacherList.add(t);
                             }
                         }
+                        syncDynamicDepartmentChips();
                         applyFilters();
                     } else {
                         loadTeachersFromLocal();
@@ -295,7 +387,104 @@ public class ManageTeachersActivity extends AppCompatActivity implements Teacher
         if (localList != null && !localList.isEmpty()) {
             masterTeacherList = localList;
         }
+        syncDynamicDepartmentChips();
         applyFilters();
+    }
+
+    public static String resolveTeacherProgramLevel(Teacher t) {
+        if (t == null) return "UG";
+        String level = t.getProgramLevel();
+        if (!TextUtils.isEmpty(level) && ("UG".equalsIgnoreCase(level) || "PG".equalsIgnoreCase(level))) {
+            return level.toUpperCase();
+        }
+        return com.example.model.Department.resolveDefaultProgramLevel(t.getDepartmentShortName(), t.getDepartment());
+    }
+
+    public static boolean doesTeacherMatchDept(Teacher t, String filterDept) {
+        if ("ALL".equalsIgnoreCase(filterDept) || filterDept == null || filterDept.trim().isEmpty()) {
+            return true;
+        }
+        if (t == null) return false;
+        filterDept = filterDept.trim().toUpperCase();
+
+        String rawDept = t.getDepartment() != null ? t.getDepartment().trim().toUpperCase() : "";
+        String shortDept = t.getDepartmentShortName() != null ? t.getDepartmentShortName().trim().toUpperCase() : "";
+        String deptId = t.getDepartmentId() != null ? t.getDepartmentId().trim().toUpperCase() : "";
+
+        // Direct equality or substring on short code, department ID, or raw name
+        if (shortDept.equals(filterDept) || shortDept.contains(filterDept)) return true;
+        if (deptId.equals(filterDept) || deptId.contains(filterDept)) return true;
+        if (rawDept.equals(filterDept) || rawDept.contains(filterDept)) return true;
+
+        // Semantic cross-matching for acronyms and full department names
+        switch (filterDept) {
+            case "MCA":
+                return rawDept.contains("COMPUTER APPLICATION") || rawDept.contains("MCA") || shortDept.contains("MCA");
+            case "CSE":
+                return rawDept.contains("COMPUTER SCIENCE") || rawDept.contains("CSE") || shortDept.contains("CSE");
+            case "IT":
+                return rawDept.contains("INFORMATION TECH") || rawDept.contains("INFO TECH") || shortDept.contains("IT") || rawDept.equals("IT");
+            case "ECE":
+                return rawDept.contains("ELECTRONICS") || rawDept.contains("COMMUNICATION") || rawDept.contains("ECE") || shortDept.contains("ECE");
+            case "EEE":
+                return (rawDept.contains("ELECTRICAL") && rawDept.contains("ELECTRONIC")) || rawDept.contains("EEE") || shortDept.contains("EEE");
+            case "MECH":
+            case "MECHANICAL":
+                return rawDept.contains("MECHANICAL") || rawDept.contains("MECH") || shortDept.contains("MECH");
+            case "CIVIL":
+                return rawDept.contains("CIVIL") || shortDept.contains("CIVIL");
+            case "MBA":
+                return rawDept.contains("BUSINESS") || rawDept.contains("MANAGEMENT") || rawDept.contains("MBA") || shortDept.contains("MBA");
+            default:
+                return rawDept.contains(filterDept) || shortDept.contains(filterDept) || deptId.contains(filterDept);
+        }
+    }
+
+    public static boolean doesTeacherMatchLevel(Teacher t, String filterLevel) {
+        if ("ALL".equalsIgnoreCase(filterLevel) || filterLevel == null || filterLevel.trim().isEmpty()) {
+            return true;
+        }
+        filterLevel = filterLevel.trim().toUpperCase();
+        String level = resolveTeacherProgramLevel(t);
+        return filterLevel.equalsIgnoreCase(level);
+    }
+
+    public static boolean doesTeacherMatchStatus(Teacher t, String filterStatus) {
+        if ("ALL".equalsIgnoreCase(filterStatus) || filterStatus == null || filterStatus.trim().isEmpty()) {
+            return true;
+        }
+        String status = t.getStatus() != null ? t.getStatus().trim().toUpperCase() : "ACTIVE";
+        return filterStatus.equalsIgnoreCase(status);
+    }
+
+    public static boolean doesTeacherMatchQuery(Teacher t, String query) {
+        if (TextUtils.isEmpty(query)) {
+            return true;
+        }
+        query = query.toLowerCase().trim();
+
+        if (t.getName() != null && t.getName().toLowerCase().contains(query)) return true;
+        if (t.getEmail() != null && t.getEmail().toLowerCase().contains(query)) return true;
+        if (t.getEmployeeId() != null && t.getEmployeeId().toLowerCase().contains(query)) return true;
+        if (t.getLoginId() != null && t.getLoginId().toLowerCase().contains(query)) return true;
+        if (t.getPhone() != null && t.getPhone().toLowerCase().contains(query)) return true;
+        if (t.getDepartment() != null && t.getDepartment().toLowerCase().contains(query)) return true;
+        if (t.getDepartmentShortName() != null && t.getDepartmentShortName().toLowerCase().contains(query)) return true;
+        if (t.getDesignation() != null && t.getDesignation().toLowerCase().contains(query)) return true;
+        if (t.getQualification() != null && t.getQualification().toLowerCase().contains(query)) return true;
+
+        String level = resolveTeacherProgramLevel(t);
+        if (level.toLowerCase().contains(query)) return true;
+
+        if (t.getAssignedSubjectNames() != null) {
+            for (String subName : t.getAssignedSubjectNames()) {
+                if (subName != null && subName.toLowerCase().contains(query)) {
+                    return true;
+                }
+            }
+        }
+
+        return false;
     }
 
     private void applyFilters() {
@@ -303,20 +492,10 @@ public class ManageTeachersActivity extends AppCompatActivity implements Teacher
         filteredTeacherList.clear();
 
         for (Teacher t : masterTeacherList) {
-            String status = t.getStatus() != null ? t.getStatus().toUpperCase() : "ACTIVE";
-            String dept = t.getDepartment() != null ? t.getDepartment().toUpperCase() : "";
-            String level = t.getProgramLevel() != null ? t.getProgramLevel().toUpperCase() : "UG";
-
-            boolean matchesLevel = "ALL".equalsIgnoreCase(selectedProgramLevelFilter) || selectedProgramLevelFilter.equalsIgnoreCase(level);
-            boolean matchesStatus = "ALL".equalsIgnoreCase(selectedStatusFilter) || selectedStatusFilter.equalsIgnoreCase(status);
-            boolean matchesDept = "ALL".equalsIgnoreCase(selectedDeptFilter) || dept.contains(selectedDeptFilter);
-            boolean matchesQuery = query.isEmpty() ||
-                    (t.getName() != null && t.getName().toLowerCase().contains(query)) ||
-                    (t.getEmail() != null && t.getEmail().toLowerCase().contains(query)) ||
-                    (t.getEmployeeId() != null && t.getEmployeeId().toLowerCase().contains(query)) ||
-                    (t.getDepartment() != null && t.getDepartment().toLowerCase().contains(query)) ||
-                    (t.getDesignation() != null && t.getDesignation().toLowerCase().contains(query)) ||
-                    level.toLowerCase().contains(query);
+            boolean matchesLevel = doesTeacherMatchLevel(t, selectedProgramLevelFilter);
+            boolean matchesStatus = doesTeacherMatchStatus(t, selectedStatusFilter);
+            boolean matchesDept = doesTeacherMatchDept(t, selectedDeptFilter);
+            boolean matchesQuery = doesTeacherMatchQuery(t, query);
 
             if (matchesLevel && matchesStatus && matchesDept && matchesQuery) {
                 filteredTeacherList.add(t);
@@ -324,14 +503,55 @@ public class ManageTeachersActivity extends AppCompatActivity implements Teacher
         }
 
         adapter.updateData(filteredTeacherList);
-        tvTotalLabel.setText("Showing " + filteredTeacherList.size() + " Faculty Members");
+
+        boolean isFiltered = !"ALL".equalsIgnoreCase(selectedProgramLevelFilter)
+                || !"ALL".equalsIgnoreCase(selectedStatusFilter)
+                || !"ALL".equalsIgnoreCase(selectedDeptFilter)
+                || !query.isEmpty();
+
+        if (btnClearFilters != null) {
+            btnClearFilters.setVisibility(isFiltered ? View.VISIBLE : View.GONE);
+        }
+
+        if (tvTotalLabel != null) {
+            if (isFiltered) {
+                tvTotalLabel.setText("Showing " + filteredTeacherList.size() + " of " + masterTeacherList.size() + " Faculty (Filtered)");
+            } else {
+                tvTotalLabel.setText("All " + filteredTeacherList.size() + " Registered Faculty Members");
+            }
+        }
 
         if (filteredTeacherList.isEmpty()) {
-            tvEmpty.setVisibility(View.VISIBLE);
-            rvTeachers.setVisibility(View.GONE);
+            if (layoutEmptyTeachers != null) layoutEmptyTeachers.setVisibility(View.VISIBLE);
+            if (rvTeachers != null) rvTeachers.setVisibility(View.GONE);
+
+            if (tvEmpty != null) {
+                if (masterTeacherList.isEmpty()) {
+                    tvEmpty.setText("No faculty members registered yet.");
+                } else {
+                    tvEmpty.setText("No faculty members found");
+                }
+            }
+            if (tvEmptySub != null) {
+                if (masterTeacherList.isEmpty()) {
+                    tvEmptySub.setText("Click the '+ Add' button above to register a faculty member.");
+                } else {
+                    List<String> activeFilters = new ArrayList<>();
+                    if (!"ALL".equalsIgnoreCase(selectedProgramLevelFilter)) activeFilters.add("Level: " + selectedProgramLevelFilter);
+                    if (!"ALL".equalsIgnoreCase(selectedDeptFilter)) activeFilters.add("Dept: " + selectedDeptFilter);
+                    if (!"ALL".equalsIgnoreCase(selectedStatusFilter)) activeFilters.add("Status: " + selectedStatusFilter);
+                    if (!query.isEmpty()) activeFilters.add("\"" + query + "\"");
+
+                    if (activeFilters.isEmpty()) {
+                        tvEmptySub.setText("Try adjusting your search query or filter options.");
+                    } else {
+                        tvEmptySub.setText(TextUtils.join(" • ", activeFilters) + "\nTry adjusting or resetting filters.");
+                    }
+                }
+            }
         } else {
-            tvEmpty.setVisibility(View.GONE);
-            rvTeachers.setVisibility(View.VISIBLE);
+            if (layoutEmptyTeachers != null) layoutEmptyTeachers.setVisibility(View.GONE);
+            if (rvTeachers != null) rvTeachers.setVisibility(View.VISIBLE);
         }
     }
 
@@ -585,7 +805,7 @@ public class ManageTeachersActivity extends AppCompatActivity implements Teacher
 
     private void showEditAssignedSubjectsPicker(Teacher teacher, List<String> currentSubIds, List<String> currentSubNames, Runnable onComplete) {
         showLoading(true);
-        String pLevel = teacher.getProgramLevel() != null ? teacher.getProgramLevel() : "UG";
+        String pLevel = resolveTeacherProgramLevel(teacher);
         String dept = teacher.getDepartment();
 
         db.collection("subjects")
